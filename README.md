@@ -34,10 +34,10 @@ Copy this skill into your Claude Code skills directory:
 
 ```bash
 # user-scope (available in every project)
-git clone https://github.com/<your-username>/model-refresh ~/.claude/skills/model-refresh
+git clone https://github.com/gupilleveldesigner/model-refresh ~/.claude/skills/model-refresh
 
 # or project-scope (this project only)
-git clone https://github.com/<your-username>/model-refresh .claude/skills/model-refresh
+git clone https://github.com/gupilleveldesigner/model-refresh .claude/skills/model-refresh
 ```
 
 Then just talk to it — no separate install step beyond the file copy.
