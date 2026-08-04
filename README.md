@@ -8,6 +8,10 @@ A [Claude Code](https://claude.com/claude-code) skill that audits your entire se
 
 If yes, that instruction was a corrective device for an older model generation, and today it's pure context cost and a source of behavioral distortion. This standard comes from advice by [Boris Cherny](https://github.com/bcherny), creator of Claude Code — a setup is always tuned for the model that's two generations behind whatever you're running now. `/model-refresh` is the workflow for re-applying it every time a new model ships.
 
+![model-refresh audit demo](assets/demo.gif)
+
+*A real Phase 0–3 run captured against the synthetic fixture in [`evals/fixture-home`](evals/fixture-home) — nothing here touches a real `~/.claude`. Full report excerpted for length; see [`evals/evals.json`](evals/evals.json) id 1 to reproduce it yourself. [Static screenshot](assets/screenshot.png) if you'd rather not wait for the animation.*
+
 ## Why this exists
 
 `/doctor` checks configuration correctness. It doesn't tell you that a plugin is injecting a paragraph into every prompt for a problem the current model no longer has, that a hook's guardrail is about to die along with its annoying notice if you disable the whole script, or that a skill you installed for one project is now loaded — and silently competing for the model's attention — in every project you open.
