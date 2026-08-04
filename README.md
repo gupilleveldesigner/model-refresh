@@ -8,9 +8,13 @@ A [Claude Code](https://claude.com/claude-code) (and [Codex CLI](https://develop
 
 If yes, that instruction was a corrective device for an older model generation, and today it's pure context cost and a source of behavioral distortion. This standard comes from advice by [Boris Cherny](https://github.com/bcherny), creator of Claude Code — a setup is always tuned for the model that's two generations behind whatever you're running now. `/model-refresh` is the workflow for re-applying it every time a new model ships.
 
-![model-refresh audit demo](assets/demo.gif)
+![model-refresh: configuration sprawl resolved into a clear system](assets/model-refresh-hero.png)
 
-*A real Phase 0–3 run captured against the synthetic fixture in [`evals/fixture-home`](evals/fixture-home) — nothing here touches a real `~/.claude`. Full report excerpted for length; see [`evals/evals.json`](evals/evals.json) id 1 to reproduce it yourself. [Static screenshot](assets/screenshot.png) if you'd rather not wait for the animation.*
+*Turn sprawling configuration into a setup tuned for today’s models.*
+
+![Sample model-refresh audit report](assets/screenshot.png)
+
+*A real Phase 0–3 run captured against the synthetic fixture in [`evals/fixture-home`](evals/fixture-home) — nothing here touches a real `~/.claude`. Full report excerpted for length; see [`evals/evals.json`](evals/evals.json) id 1 to reproduce it yourself.*
 
 ## Why this exists
 
