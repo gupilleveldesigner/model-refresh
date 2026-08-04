@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": []
+  },
+  "enabledPlugins": {
+    "mega-orchestrator@community": true,
+    "note-sync@community": true,
+    "old-linter@community": false
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/guard.js\""
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/reader-nudge.js\""
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "node /opt/hud/statusline.js"
+  }
+}

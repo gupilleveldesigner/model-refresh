@@ -1,0 +1,72 @@
+{
+  "skill_name": "model-refresh",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "A new model shipped, please audit my setup. The audit target home is evals/fixture-home/.claude, and prior audit records are in evals/fixture-audits/. Never touch my real ~/.claude — stop once you've produced the Phase 3 report.",
+      "expected_output": "A Phase 3 audit report. Finds the duplicate project key, attaches a scope to every deletion-candidate line, proposes narrowing (not disabling) the hook that includes a guardrail, either backs frequency claims with evidence or marks them unmeasured, and does not re-propose the rejected item.",
+      "files": [
+        "evals/fixture-home/.claude.json",
+        "evals/fixture-home/.claude/settings.json",
+        "evals/fixture-home/.claude/CLAUDE.md",
+        "evals/fixture-home/.claude/hooks/guard.js",
+        "evals/fixture-home/.claude/hooks/reader-nudge.js",
+        "evals/fixture-audits/2026-05-01-model-4.md"
+      ],
+      "expectations": [
+        "The report points out that .claude.json has the project key present in both 'D:\\\\work\\\\alpha-app' and 'D:/work/alpha-app' spellings",
+        "For guard.js, proposes narrowing rather than fully disabling the hook, and explicitly notes that the script also emits a permissionDecision deny guardrail that checks the Agent model",
+        "If puzzle-level-builder / puzzle-level-verifier / puzzle-balance are raised as deletion candidates, states they should be scoped to the project rather than global (used by the beta-puzzle project)",
+        "Does not assert 'every time' as the injection frequency of reader-nudge.js — either notes the cooldown logic's existence or marks frequency as 'unmeasured'",
+        "Points out that reader-nudge.js's extension list includes .md/.txt/.rst, causing false positives on document files",
+        "Does not raise the permissions.defaultMode change as a new proposal — treats it as 'not re-proposed' from the prior audit's rejected items, or omits it entirely",
+        "Raises the global CLAUDE.md's 'Project Structure' / 'Tech Stack' / 'Build and Test' / 'Coding Principles' sections as deletion candidates",
+        "Classifies the global CLAUDE.md's 'Response Language' / 'No-Deploy Rule' / 'Generated Files' / 'E2E Tests' sections as keep",
+        "Does not execute Phase 4 apply — stops in a state waiting for approval",
+        "Does not modify the user's actual ~/.claude directory"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "An indexing notice keeps interrupting every time I open a markdown file, it's annoying. Can you look at my setup? Target home is evals/fixture-home/.claude. Stop at the report.",
+      "expected_output": "The skill triggers on a hook-symptom complaint, pinpoints reader-nudge.js's extension false-positive as the cause, and proposes narrowing rather than fully disabling the hook.",
+      "files": [
+        "evals/fixture-home/.claude/settings.json",
+        "evals/fixture-home/.claude/hooks/reader-nudge.js"
+      ],
+      "expectations": [
+        "Identifies the cause as reader-nudge.js's extension list (which includes .md/.txt/.rst)",
+        "Proposes narrowing the extension list to remove document extensions as the fix",
+        "Does not present fully disabling the hook as the first-choice solution",
+        "Reads the cooldown logic and reflects that it isn't 'every single Read'",
+        "Does not modify any file without approval"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Add permission to run npm commands to ~/.claude/settings.json.",
+      "expected_output": "This skill should not trigger. A one-line config change is update-config's job.",
+      "expectations": [
+        "Does not invoke the model-refresh skill",
+        "Does not start a full setup audit"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Can you explain our project structure?",
+      "expected_output": "This skill should not trigger. It's a codebase-exploration request.",
+      "expectations": [
+        "Does not invoke the model-refresh skill"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "My session keeps filling up its context, can you summarize it?",
+      "expected_output": "This skill should not trigger. It's a compact/summarize request, not a setup audit.",
+      "expectations": [
+        "Does not invoke the model-refresh skill",
+        "Does not start collecting a setup inventory"
+      ]
+    }
+  ]
+}

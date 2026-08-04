@@ -1,0 +1,22 @@
+{
+  "installMethod": "native",
+  "numStartups": 142,
+  "mcpServers": {
+    "legacy-notes": {
+      "command": "node",
+      "args": ["/opt/legacy-notes/server.js"]
+    }
+  },
+  "projects": {
+    "D:\\work\\alpha-app": {
+      "disabledMcpServers": [],
+      "enabledMcpjsonServers": []
+    },
+    "D:/work/alpha-app": {
+      "enabledMcpjsonServers": []
+    },
+    "D:/work/beta-puzzle": {
+      "enabledMcpjsonServers": []
+    }
+  }
+}

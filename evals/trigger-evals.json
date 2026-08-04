@@ -1,0 +1,18 @@
+[
+  { "query": "A new model shipped, can you refresh my setup?", "should_trigger": true },
+  { "query": "Why does my context feel so bloated? Check what can be trimmed", "should_trigger": true },
+  { "query": "Can you clean up CLAUDE.md? It's gotten way too long", "should_trigger": true },
+  { "query": "I ran /doctor and it's still the same as before", "should_trigger": true },
+  { "query": "Every time I open a markdown file some indexing notice pops up and it's annoying", "should_trigger": true },
+  { "query": "Some irrelevant workflow keeps getting injected into almost every prompt", "should_trigger": true },
+  { "query": "There seem to be way too many skills loaded that have nothing to do with this project", "should_trigger": true },
+  { "query": "It says my Google Drive connector is connected but it doesn't actually work. I want to clean up MCP", "should_trigger": true },
+  { "query": "I feel like I've accumulated too many plugins and hooks, can you audit what's actually being used", "should_trigger": true },
+
+  { "query": "Add permission to run npm commands in ~/.claude/settings.json", "should_trigger": false },
+  { "query": "Write me a new hook that runs tests on every commit", "should_trigger": false },
+  { "query": "Create a CLAUDE.md for this repo", "should_trigger": false },
+  { "query": "Can you explain our project structure?", "should_trigger": false },
+  { "query": "My session context is full, summarize everything so far", "should_trigger": false },
+  { "query": "Make me a new skill for cleaning up PDFs", "should_trigger": false }
+]
