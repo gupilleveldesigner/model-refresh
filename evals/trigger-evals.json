@@ -8,8 +8,11 @@
   { "query": "There seem to be way too many skills loaded that have nothing to do with this project", "should_trigger": true },
   { "query": "It says my Google Drive connector is connected but it doesn't actually work. I want to clean up MCP", "should_trigger": true },
   { "query": "I feel like I've accumulated too many plugins and hooks, can you audit what's actually being used", "should_trigger": true },
+  { "query": "Can you audit my Claude and Codex setup together", "should_trigger": true },
+  { "query": "My Codex AGENTS.md has gotten way too long, can you clean it up", "should_trigger": true },
 
   { "query": "Add permission to run npm commands in ~/.claude/settings.json", "should_trigger": false },
+  { "query": "Make me a new Codex skill for cleaning up PDFs", "should_trigger": false },
   { "query": "Write me a new hook that runs tests on every commit", "should_trigger": false },
   { "query": "Create a CLAUDE.md for this repo", "should_trigger": false },
   { "query": "Can you explain our project structure?", "should_trigger": false },

@@ -1,5 +1,7 @@
 # Runtime verification — did you ask the session, not just the file
 
+Everything in this document is **Claude Code-specific**. For Codex CLI, check the "Codex-side runtime verification" section at the bottom first — there isn't an equally-verified procedure yet.
+
 ## Why re-reading the file isn't enough
 
 If you consider a setup change verified once "I re-read the file and the content is correct," you've only confirmed bytes. Nothing guarantees the runtime actually reads that key from that file.
@@ -53,3 +55,15 @@ Classify into three states based on the init event, and report them:
 ## Don't overstate name-list savings
 
 A deferred MCP tool's schema isn't loaded until it's called. Turning off a connector actually reduces the **tool name list and each server's usage notes** — not the entire "MCP tools (deferred)" figure in `/context`. Don't carry that figure over as expected savings. The honest claims are "the name count dropped by N" (before/after init-event comparison) and "a layer nobody uses disappeared from the list, which simplifies routing."
+
+## Codex-side runtime verification
+
+**Honestly, as of this writing it hasn't been confirmed whether Codex CLI has a procedure equivalent to Claude's headless init event.** Don't invent a specific command name here — instead, approach it in this order:
+
+1. Check `codex --help` and its subcommands' `--help` for a headless/non-interactive mode or an option that dumps session state as JSON. If one exists, look in that output for fields corresponding to loaded MCP servers, plugins, and active hooks, and use it the same way as Claude's init event (before/after comparison). If you find it, add the method to this document so the next audit can reuse it.
+2. If no such mechanism turns up, drop verification to two fallback steps:
+   - **Re-parse the file**: re-read config.toml, confirm it still parses as valid TOML, and confirm the intended section is actually gone/changed. This only proves "the intended bytes made it into the file" — it's not a guarantee the runtime reads it.
+   - **Ask the user for a smoke test**: ask the user to open a fresh Codex session and directly confirm whether the given MCP server/plugin/hook is off (or on). Point out specifically what to look for (e.g. "does the `<server-name>` MCP tool still show up in a new session").
+3. Either way, honestly record it in the report and audit record as **"unverified (Codex, no headless verification method)."** Don't upgrade it to "applied" — this is exactly to avoid repeating, on the Codex side, the same mistake that happened on the Claude side when trusting a file re-read alone led to reporting "verified" while roughly 180 MCP tools stayed loaded for hours.
+
+If a reliable headless verification method for Codex is confirmed in the future, replace this section with that procedure and update the "unverified (Codex)" labeling rule in Phase 4/apply-protocol.md accordingly.

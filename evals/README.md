@@ -20,6 +20,8 @@ This skill audits and modifies real setup files. Running evals against a real ho
 
 The negative cases (ids 3–5) are near-miss triggers — they check that this skill does *not* misfire on an `update-config` request, codebase exploration, or a compact request.
 
+**Known coverage gap (added 2026-08-04, when cross-tool support landed):** `fixture-home/` only mimics Claude's structure (`.claude.json`, `.claude/hooks/`, `.claude/skills/`). The Codex-side inventory procedure (`references/codex-inventory.md`) and the "cross-tool duplication" judgment (`references/audit-rules.md`) only got trigger phrases added to `trigger-evals.json` — they have **not** been exercised by this eval harness yet. Not hiding that here — a `fixture-codex-home/` (a fake `config.toml`/`AGENTS.md`/`skills/`) plus a cross-tool duplication case (a fixture where the same skill exists as a real copy on both sides) is the next priority.
+
 ## Running the evals
 
 ### Measuring trigger accuracy — direct measurement beats the harness here
