@@ -1,5 +1,7 @@
 # model-refresh
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A [Claude Code](https://claude.com/claude-code) skill that audits your entire setup — plugins, hooks, agents, skills, MCP connectors, and CLAUDE.md — against one question:
 
 > **Can the model figure this out on its own?**
