@@ -1,104 +1,92 @@
-# Apply protocol (Phase 4)
+# 적용 프로토콜 (Phase 4)
 
-Delegate only approved items to a background agent (general-purpose). The main session keeps the conversation going.
+승인된 항목만 백그라운드 에이전트(general-purpose)에 위임한다. 본체는 대화를 유지한다.
 
-## Agent prompt template
+## 에이전트 프롬프트 템플릿
 
-Fill approved items into the skeleton below and hand it off. Brackets mark substitution points.
+아래 골격에 승인된 항목을 채워 전달한다. 대괄호가 치환 지점이다.
 
 ```
-Clean up an AI coding agent setup. Environment: [OS], tool home(s): [Claude Code: absolute path to ~/.claude] [Codex CLI: absolute path to ~/.codex] (whichever apply)
+AI 코딩 에이전트 셋업 정리를 수행한다. 환경: [OS], 대상 도구와 홈: [Claude Code: ~/.claude 절대경로] [Codex CLI: ~/.codex 절대경로] (해당하는 것만)
 
-Work (approved items only):
-[For each approved group of deletion / cross-tool integration candidates: what, which tool, and by what method]
+작업 (승인된 항목만):
+[삭제 후보/도구 간 통합 후보 중 승인된 그룹을 항목별로: 무엇을, 어떤 도구, 어떤 방법으로]
 
-CLAUDE.md/AGENTS.md approved-line block:
-[Verbatim quote of the deletion lines approved in Phase 3, per file. If trimming wasn't approved for a file, write "none" for it]
+CLAUDE.md/AGENTS.md 승인 라인 블록:
+[Phase 3에서 승인된 삭제 라인의 원문을 도구별로 그대로 인용. 트리밍이 승인되지 않았으면 "없음"이라고 쓴다]
 
-Do not touch:
-[Everything classified as "keep" + any group not approved by the user + project files + memory directories]
+건드리지 말 것:
+[보존 분류 전체 + 사용자가 승인하지 않은 그룹 + 프로젝트 파일 + 메모리 디렉토리]
 
-Safety rules:
-1. Before modifying anything, create a backup directory [tool-home/backup-refresh-YYYYMMDD]
-   and copy every file you're about to modify. Claude: ~/.claude/CLAUDE.md, the agents folder,
-   settings.json, settings.local.json, ~/.claude.json, project .claude/settings.json and
-   settings.local.json, any hook scripts you'll edit, the plugin registry. Codex: ~/.codex/AGENTS.md,
-   config.toml, project .codex/hooks.json. For files the runtime constantly rewrites
-   (~/.claude.json, etc.), record the backup timestamp alongside it.
-   Create the backup directory **outside** any skill/plugin directory — placing it inside
-   skills/ registers the backup as a duplicate skill and pollutes the listing (this has
-   actually happened and had to be moved out immediately).
-2. Prefer the official CLI for plugins. Claude: use `claude plugin list` to confirm the exact
-   name@marketplace, then `claude plugin disable <name@marketplace>`. Codex: check whether an
-   equivalent CLI command exists first, e.g. via `codex --help` — if it exists, use it; if not,
-   fall back to editing config.toml directly per rule 3 below. Never delete a plugin folder
-   directly, on either tool.
-3. When editing config.toml (Codex) directly, preserve TOML syntax integrity: quote keys that
-   contain dots or `@` (e.g. `[plugins."name@marketplace"]`), don't let blank lines or the next
-   section header get mangled when removing a whole table, and **always re-parse the file with
-   a TOML parser after editing** to confirm it's still syntactically valid
-   (`python -c "import tomllib,sys; tomllib.load(open(sys.argv[1],'rb'))"` or equivalent). If
-   parsing fails, treat the change as not applied, revert it, and report it as a failure —
-   broken TOML can prevent the whole tool from starting.
-4. For files containing non-ASCII text, never use shell append (>>) or a heredoc (there is
-   a history of file corruption from this). Read → write the full content → re-read.
-   **Note that re-reading only proves "it got written to the file."** Whether the runtime
-   picks it up is a separate question — always do step 10 below for that.
-5. Trimming agent descriptions means removing example blocks only — never delete the file,
-   and preserve any routing language ("for a simple request, just use the skill directly").
-6. If a disabled plugin's hook entry is still present (Claude: settings.json; Codex:
-   config.toml's `[hooks.state.*]`), read what that hook script actually outputs before
-   removing it. If it only emits a notice, remove it (after backup). If it also emits
-   `permissionDecision`/`deny`/blocking logic, do not remove it — report it as "hook contains
-   a guardrail — not removed." If you can't read the script, leave it and report it as
-   unjudged. If plugin-specific env config remains, just list it as "dead config" — removing
-   it is a separate approval item.
-7. For CLAUDE.md/AGENTS.md content trimming, remove only the lines quoted in the
-   "approved-line block" for that file. If that block is "none" or empty for a file, don't
-   touch that file's content at all, and report that fact. Lines not in the block —
-   especially user policy/preferences (language rules, publishing restrictions, security
-   rules) — must not be judged; leave them as-is.
-8. **When a cross-tool integration (canonical + junction conversion) is approved**: keep the
-   approved side as canonical, delete the other side's real directory, then replace it with a
-   junction (Windows: `mklink /J` or PowerShell `New-Item -ItemType Junction`) or symlink
-   (Unix: `ln -s`). **Diff the two copies once more before deleting anything to confirm they're
-   actually identical, and only back up the side you're about to remove.** After creating the
-   link, verify both paths read correctly (read the first line of SKILL.md from each) before
-   reporting it as applied.
-9. Right before starting the apply, re-read the modification times of the target tools' core
-   config files (Claude: CLAUDE.md, settings.json, settings.local.json, ~/.claude.json; Codex:
-   AGENTS.md, config.toml), and compare against the "inventory-time snapshot" below. If even
-   one differs, don't change anything — just report that fact and stop. It means another
-   session is touching the same files.
+안전 규칙:
+1. 수정 전 백업 디렉토리 [해당 도구 홈/backup-refresh-YYYYMMDD]를 만들고,
+   수정 대상 파일 전부를 복사한다. Claude: ~/.claude/CLAUDE.md, agents 폴더, settings.json,
+   settings.local.json, ~/.claude.json, 프로젝트 .claude/settings.json·settings.local.json,
+   수정할 훅 스크립트, 플러그인 레지스트리. Codex: ~/.codex/AGENTS.md, config.toml,
+   프로젝트 .codex/hooks.json. 런타임이 상시 다시 쓰는 파일(~/.claude.json 등)은
+   백업 시각을 함께 기록한다.
+   백업 디렉토리는 스킬·플러그인 디렉토리 **바깥**에 만든다 — skills/ 안에 두면
+   백업본이 중복 스킬로 등록돼 목록을 오염시킨다 (실제로 이 실수가 나서 즉시 이동시킨 사고 이력이 있다).
+2. 플러그인은 공식 CLI 우선. Claude: `claude plugin list`로 정확한 이름@마켓플레이스를 확인하고
+   `claude plugin disable <이름@마켓플레이스>`. Codex: 대응 CLI 명령이 있는지 먼저
+   `codex --help` 계열로 확인한다 — 있으면 그걸 쓰고, 없으면 3번 규칙에 따라 config.toml을
+   직접 편집한다(플러그인 폴더 삭제는 금지, 두 도구 공통).
+3. config.toml(Codex)을 직접 편집할 때는 TOML 문법 무결성을 지킨다: 섹션 테이블
+   (`[plugins."이름@마켓플레이스"]`처럼 점·`@`가 들어간 키는 따옴표 필수) 하나를 통째로
+   제거할 때 앞뒤 빈 줄과 다음 섹션 헤더가 안 섞이게 하고, 편집 후 반드시 TOML 파서로
+   재파싱해 문법 오류가 없는지 확인한다(`python -c "import tomllib,sys; tomllib.load(open(sys.argv[1],'rb'))"`
+   또는 동등 수단). 파싱에 실패하면 그 변경은 적용하지 않은 것으로 되돌리고 실패로 보고한다 —
+   깨진 TOML은 도구 전체를 못 띄우게 만들 수 있다.
+4. 한글이 포함된 파일은 셸 append(>>)·heredoc 금지 (파일 손상 사고 이력 있음).
+   Read → 전체 내용 Write → 재독. 단 **재독은 "파일에 썼다"까지만 증명한다.**
+   런타임이 그것을 반영하는지는 별개 질문이므로 아래 9번을 반드시 수행한다.
+5. 에이전트 설명 트리밍은 example 블록 제거만, 파일 삭제 금지, 라우팅 문구 보존.
+6. 비활성화한 플러그인의 훅 항목이 남아 있으면(Claude는 settings.json, Codex는 config.toml의
+   `[hooks.state.*]`), 지우기 전에 그 훅 스크립트가 무엇을 출력하는지 읽는다. 안내문만 내는
+   훅이면 제거(백업 후). `permissionDecision`·`deny`·차단 로직을 내는 훅이면 제거하지 말고
+   "가드레일 포함 훅 — 제거하지 않음"으로 보고한다. 스크립트를 읽지 못하면 그대로 두고
+   미판정으로 보고한다. 그 플러그인 전용 env 설정이 남아 있으면 "죽은 설정"으로 목록에만
+   올린다 — 지우는 것은 별도 승인 항목이다.
+7. CLAUDE.md/AGENTS.md 내용 트리밍은 "승인 라인 블록"에 인용된 라인만 제거한다.
+   블록이 "없음"이거나 비어 있으면 그 파일 내용은 일절 수정하지 말고 그 사실을 보고한다.
+   블록에 없는 줄 — 특히 사용자 정책·선호(언어 규칙, 공개 금지, 보안 규칙) — 은 판단하지 말고 그대로 둔다.
+8. **도구 간 통합(정본+정션 전환)이 승인된 경우**: 승인된 쪽을 정본으로 남기고, 다른 쪽
+   실물 디렉토리를 삭제한 뒤 정션(Windows: `mklink /J` 또는 PowerShell `New-Item -ItemType Junction`)
+   /심볼릭 링크(Unix: `ln -s`)로 대체한다. **삭제 전에 반드시 두 사본을 diff해 내용이 같은지
+   재확인하고, 지우려는 쪽만 백업한다.** 정션 생성 후 두 경로 모두에서 파일이 정상적으로
+   읽히는지 확인(양쪽에서 SKILL.md 첫 줄 읽어보기)하기 전에는 "적용 완료"라고 보고하지 않는다.
+9. 적용 시작 직전에 대상 도구들의 핵심 설정 파일(Claude: CLAUDE.md·settings.json·
+   settings.local.json·~/.claude.json, Codex: AGENTS.md·config.toml)의 수정 시각을 다시 읽어
+   아래 "인벤토리 시점 스냅샷"과 비교한다. 하나라도 다르면 아무것도 고치지 말고 그 사실만
+   보고하고 중단한다 — 다른 세션이 같은 파일을 만지고 있다는 뜻이다.
 
-   Inventory-time snapshot:
-   [tool | file | size | modification time table]
-10. For changes that affect runtime loading — MCP servers, plugins, hooks — don't stop at
-    re-reading the file. On Claude, confirm with a new headless session's init event
-    (references/runtime-verify.md). Codex doesn't have an equally-verified headless
-    procedure — check the Codex section of runtime-verify.md first; if there's one, use it, if
-    not, fall back to a file re-read plus asking the user for a direct smoke test, and report
-    it honestly as "unverified (Codex)." Never write "applied" for something you couldn't
-    confirm.
+   인벤토리 시점 스냅샷:
+   [도구 | 파일 | 크기 | 수정 시각 표]
+10. MCP 서버·플러그인·훅처럼 **런타임 로딩에 영향을 주는 변경**은 파일 재독으로 끝내지 말고,
+    Claude는 새 헤드리스 세션의 init 이벤트로 확인한다 (references/runtime-verify.md).
+    Codex는 동등하게 검증된 헤드리스 절차가 없다 — runtime-verify.md의 Codex 절을 먼저 읽고,
+    있으면 그 방법을, 없으면 파일 재독 + 사용자 스모크 테스트 요청까지만 하고 정직하게
+    "미검증(Codex)"이라고 보고한다. "적용 완료"라고 쓰지 않는다.
+11. **Computer Use·브라우저·데스크톱 UI 자동화는 별도 실행 권한이다.** 사용자가 플러그인·커넥터·설정의 제거 또는 수정을 승인했더라도, 현재 요청에서 UI 자동화 수단까지 명시적으로 허용하지 않았다면 사용하지 않는다. 도구가 설치돼 있거나 플랫폼 권한이 열려 있어도 마찬가지다. 공식 CLI·안전한 파일 편집으로 처리할 수 없는 앱 UI 항목은 `수동 처리 필요`로 보고하고, 사용자가 직접 누를 정확한 경로만 안내한다.
 
-Final report (write it in the language the user has been using):
-- Per-item handling and the mechanism used (CLI / config edit / junction conversion), and how to roll each one back
-- Before/after size per file and verification result, broken out by tool
-- Runtime verification result: for Claude, from the init event — mcp_servers status and
-  loaded-tool count before/after. For Codex, whatever verification method applied, or
-  "unverified (Codex)" if none did
-- What couldn't be done (app-UI-managed items, etc.) and anything else you discovered
+최종 보고 (사용자가 써온 언어로):
+- 항목별 처리 내역과 사용한 메커니즘(CLI/설정 편집/정션 전환), 각각의 복구 방법
+- 파일별 전/후 크기와 검증 결과 (도구별로 구분)
+- 런타임 검증 결과: Claude는 init 이벤트 기준 변경 전/후 mcp_servers 상태와 로드된 툴
+  이름 개수. Codex는 검증 수단이 확인됐으면 그 결과, 없으면 "미검증(Codex)"이라고 명시
+- 하지 못한 것(앱 UI 관리 항목 등)과 발견 사항
 ```
 
-## What the main session does
+## 본체가 할 일
 
-1. Once the agent's completion report comes back, summarize the essentials for the user: what was done, backup location, how to roll back, and anything that needs manual handling.
-2. Proceed to Phase 5 recording.
-3. If the report contains a failure or partial failure, surface it as-is — don't hide it — and suggest how to respond.
+1. 에이전트 완료 보고를 받으면 핵심을 사용자에게 요약 전달: 처리 내역, 백업 위치, 복구 방법, 수동 처리 필요 항목.
+2. Phase 5 기록으로 진행.
+3. 보고에 실패/부분 실패가 있으면 숨기지 말고 그대로 전달하고 대응을 제안한다.
 
-## Rollback procedure (if the user wants to undo it)
+## 복구 절차 (사용자가 되돌리길 원할 때)
 
-- Plugins: on Claude, `claude plugin enable <name@marketplace>`. On Codex, if there's no equivalent CLI, restore the `[plugins.*]` entries from the backed-up config.toml.
-- Files: copy the original back from the backup directory.
-- Junction/symlink conversion: delete the link and copy the backed-up real directory back into place.
-- The audit record (path chosen in Phase 0) should have a per-item rollback method for that run.
+- 플러그인: Claude는 `claude plugin enable <이름@마켓플레이스>`. Codex는 대응 CLI가 없으면
+  백업해둔 config.toml의 `[plugins.*]` 항목을 복원.
+- 파일: 백업 디렉토리에서 원본 복사.
+- 정션/심볼릭 링크 전환: 링크를 삭제하고 백업해둔 실물 디렉토리를 원위치에 복사.
+- 감사 기록(Phase 0에서 정한 경로)에 해당 회차의 복구 방법이 항목별로 남아 있어야 한다.

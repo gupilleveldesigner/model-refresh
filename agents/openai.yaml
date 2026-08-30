@@ -1,4 +1,4 @@
 interface:
   display_name: "Model Refresh"
-  short_description: "Audit and diet a Claude Code/Codex CLI setup (new-model refresh, cross-tool dedup)"
+  short_description: "Claude Code/Codex 셋업 감사·다이어트, 대화형 HTML 보고서"
   default_prompt: "Use $model-refresh to audit and diet this machine's AI coding agent setup (Claude Code and/or Codex CLI) following SKILL.md."

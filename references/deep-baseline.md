@@ -1,17 +1,17 @@
-# deep mode — safe-mode baseline comparison
+# deep 모드 — 세이프 모드 기준선 비교
 
-If static analysis judges "this looks unnecessary in theory," deep mode proves "is it actually unnecessary." The principle: run your usual work against a baseline with the whole setup turned off, and if the result is the same, that setup element had no reason to exist.
+정적 분석이 "이론상 불필요해 보인다"를 판정한다면, deep 모드는 "실제로 없어도 되는가"를 실증한다. 원리: 셋업을 전부 끈 기준선에서 평소 작업을 돌려보고, 결과가 같으면 그 셋업은 존재 이유가 없다.
 
-## Procedure
+## 절차
 
-1. **Pick representative tasks** — pull 3–5 tasks the user actually does often from recent session records/memory, and write them up as reproducible prompts. This only means something if they're real tasks, not artificial tests.
-2. **Write the pass/fail criteria first** — **before** starting the comparison, write down a fixed, falsifiable criterion for each task (e.g., "the generated document has section X and doesn't violate rule Y," "exactly these 3 files got modified and tests pass"). "The results look similar" is not a criterion — that's the same "run it and see if it looks good" this skill criticizes elsewhere. If a criterion can't come out "no," rewrite it.
-3. **Run the baseline** — have the user open a new session in safe mode (the whole setup disabled) and run those prompts. Known entry points as of writing: the `--safe-mode` flag, the `CLAUDE_CODE_SAFE_MODE=1` environment variable, or `--bare`. These can change between versions, so check with `claude --help` before guiding the user.
-4. **Run current** — run the same prompts in a session with the current setup (an existing session record can substitute for this if you already have one).
-5. **Compare and judge** — apply step 2's criteria to both, per task, and record: pass/fail, evidence the setup intervened (a skill fired, a hook took effect), and whether that intervention helped or got in the way. If the baseline passes the criteria exactly as the current setup does, that setup element is promoted from a static "deletion candidate" to a proven one.
-6. **Merge the result into the Phase 3 report** — present it as two columns, "static judgment + empirical result," so the user's approval decision is easier.
+1. **대표 작업 선정** — 최근 세션 기록·메모리에서 사용자가 실제로 자주 하는 작업 3~5개를 뽑아 재현 가능한 프롬프트로 정리한다. 인위적 테스트가 아니라 실사용 작업이어야 의미가 있다.
+2. **판정 기준 선작성** — 비교를 **시작하기 전에** 작업별로 고정되고 실패 가능한 판정 기준을 적는다 (예: "생성된 문서에 X 섹션이 있고 Y 규칙을 위반하지 않는다", "지정 파일 3개가 수정되고 테스트가 통과한다"). "결과가 비슷해 보인다"는 판정이 아니다 — 그건 이 스킬의 원문이 비판하는 "돌려보고 좋아 보이는지 본다"와 같다. 기준이 no로 나올 수 없게 쓰였다면 다시 쓴다.
+3. **기준선 실행** — 사용자에게 세이프 모드(셋업 전체 비활성 상태)로 새 세션을 열고 그 프롬프트들을 실행하도록 안내한다. 현재 알려진 진입 방법: `--safe-mode` 플래그, 환경변수 `CLAUDE_CODE_SAFE_MODE=1`, 또는 `--bare`. 버전에 따라 달라질 수 있으니 `claude --help`로 확인 후 안내한다.
+4. **현행 실행** — 같은 프롬프트를 현행 셋업 세션에서 실행한다 (이미 이전 세션 기록이 있으면 그것으로 대체 가능).
+5. **비교 판정** — 작업별로 2번의 기준을 양쪽에 적용해 기록한다: 기준 통과 여부 / 셋업이 개입한 흔적(스킬 발동, 훅 효과) / 개입이 도움이었는지 방해였는지. 기준선이 현행과 동일하게 기준을 통과하면 해당 셋업 요소는 정적 분석의 "삭제 후보" 판정을 실증으로 승격한다.
+6. **결과를 Phase 3 보고서에 병합** — "정적 판정 + 실증 결과" 두 열로 제시하면 사용자 승인 판단이 쉬워진다.
 
-## Caution
+## 주의
 
-- Don't conclude from a single comparison. Model output varies run to run — if it's ambiguous, rerun just that task once more.
-- Doing fine in safe mode is evidence the setup was unnecessary; failing in safe mode is not automatically evidence the setup is required — often, giving the prompt more context fixes it (instruction placement priority: prompt → CLAUDE.md → skill → MCP).
+- 한 번의 비교로 단정하지 않는다. 모델 출력은 변동이 있으므로, 애매하면 해당 작업만 한 번 더 돌린다.
+- 세이프 모드에서도 잘 되는 것이 "셋업 무용"의 증거이지, 세이프 모드에서 실패하는 것이 곧 "셋업 필수"의 증거는 아니다 — 프롬프트에 맥락을 더 주면 해결되는 경우가 많다 (지침 배치 우선순위: 프롬프트 → CLAUDE.md → 스킬 → MCP).

@@ -1,69 +1,71 @@
-# Runtime verification — did you ask the session, not just the file
+# 런타임 검증 — 파일이 아니라 세션에 물었는가
 
-Everything in this document is **Claude Code-specific**. For Codex CLI, check the "Codex-side runtime verification" section at the bottom first — there isn't an equally-verified procedure yet.
+이 문서의 절차는 전부 **Claude Code 기준**이다. Codex CLI에 대해서는 문서 하단 "Codex 쪽 런타임 검증" 절을 먼저 확인할 것 — 아직 이 정도로 검증된 절차가 없다.
 
-## Why re-reading the file isn't enough
+## 왜 재독으로는 부족한가
 
-If you consider a setup change verified once "I re-read the file and the content is correct," you've only confirmed bytes. Nothing guarantees the runtime actually reads that key from that file.
+셋업 변경의 검증을 "파일을 다시 읽어 내용이 맞다"로 끝내면 확인한 것은 바이트뿐이다. 런타임이 그 파일의 그 키를 읽는다는 보장이 없다.
 
-Real incident: `~/.claude.json` had the same folder present as both a backslash key and a forward-slash key, and a `disabledMcpServers` change was written to the backslash key while the session read the forward-slash key. A change reported as "applied and verified (re-parsed the JSON)" had zero effect for hours, and roughly 180 MCP tools kept loading the whole time. Re-parsing proved nothing.
+실제 사고: `~/.claude.json`에 같은 폴더가 백슬래시 키와 슬래시 키로 두 벌 있었고, `disabledMcpServers` 변경은 백슬래시 키에만 들어갔는데 세션은 슬래시 키를 읽었다. "적용·검증 완료(JSON 재파싱함)"라고 보고된 변경이 몇 시간 동안 아무 효과가 없었고 MCP 툴 약 180개가 계속 로드됐다. 재파싱은 아무것도 증명하지 못했다.
 
-File verification answers **did the intended bytes go in**; runtime verification answers **does the session actually reflect it**. Different questions.
+파일 검증은 **의도한 바이트가 들어갔는가**를, 런타임 검증은 **세션이 그것을 반영하는가**를 답한다. 다른 질문이다.
 
-## Procedure — headless init event
+## 절차 — 헤드리스 init 이벤트
 
-With the working directory set to the project you're verifying, start a session:
+작업 디렉토리를 검증 대상 프로젝트로 둔 채 세션을 하나 띄운다:
 
 ```
 claude -p "ok" --output-format stream-json --verbose
 ```
 
-The first line's `type: "system"`, `subtype: "init"` event is that session's actual state. Read from it:
+첫 줄의 `type: "system"`, `subtype: "init"` 이벤트가 그 세션의 실제 상태다. 여기서 읽을 것:
 
-- `mcp_servers` — per-server `status`. Distinguishes `connected` / `disabled` / `needs-auth` / `pending`. If a server you turned off shows `disabled`, it applied; if it's still alive, it didn't.
-- `tools` — the actual list of loaded tool names. The count difference before/after is the only real measurement of a "name list" reduction.
-- `slash_commands` — whether a plugin disable took effect.
+- `mcp_servers` — 서버별 `status`. `connected` / `disabled` / `needs-auth` / `pending`이 구분돼 나온다. 끈 서버가 `disabled`로 잡히면 적용된 것이고, 그대로 살아 있으면 적용되지 않은 것이다.
+- `tools` — 실제로 로드된 툴 이름 목록. 변경 전후의 개수 차이가 "이름 목록" 절감의 유일한 실측치다.
+- `slash_commands` — 플러그인 비활성화가 반영됐는지.
 
-Run this **once before and once after** the change, and record both results side by side. Without two snapshots, any claim like "N fewer tools" is just an estimate.
+변경 **전에 한 번, 후에 한 번** 떠서 두 결과를 비교 기록한다. 스냅샷 두 벌이 없으면 "몇 개 줄었다"는 주장은 추정치다.
 
-Caution: the verification session's working directory *is* the applied scope. An item turned off only for one project will still show up alive when you launch from a different directory — that's expected, and it's itself evidence the scope landed as intended.
+주의: 검증 세션의 작업 디렉토리가 곧 적용 스코프다. 프로젝트 한정으로 끈 항목은 다른 디렉토리에서 띄우면 그대로 살아 있다 — 그게 정상이며, 그 사실 자체가 스코프가 의도대로 걸렸다는 증거다.
 
-## Resolving duplicate project keys
+## 이중 프로젝트 키 해소
 
-If the same folder appears under two spellings under `projects` in `~/.claude.json`:
+`~/.claude.json`의 `projects` 아래 같은 폴더가 두 표기로 있으면:
 
-1. List both keys in the inventory.
-2. Put the change in only one of them, and use an init event to prove which one takes effect.
-3. Treat the one that takes effect as canonical. **Do not delete the other key** — there may be an execution path that uses the other spelling, and the runtime rewrites this file constantly anyway. Note in the audit record: "this project has two keys, canonical spelling is <X>."
+1. 두 키를 모두 인벤토리에 적는다.
+2. 한쪽에만 변경을 넣고 init 이벤트로 어느 쪽이 반영되는지 실증한다.
+3. 반영되는 쪽을 정본으로 삼는다. **반영 안 되는 쪽 키를 지우지 않는다** — 다른 표기를 쓰는 실행 경로가 있을 수 있고, 이 파일은 런타임이 상시 다시 쓴다. 감사 기록에 "이 프로젝트는 키가 두 벌, 정본은 <표기>"라고 남긴다.
 
-Writing the same value into both keys is also a valid fix. Whichever one gets read, the result is the same, so you can apply it safely without resolving which one is canonical.
+양쪽 키에 같은 값을 넣는 것도 유효한 해법이다. 어느 쪽이 읽히든 결과가 같아지므로, 정본 판별을 미루고도 안전하게 적용할 수 있다.
 
-## Judging whether a connector is alive or dead
+## 커넥터 생사 판정
 
-**Disconnecting** a connector is still app-UI territory, so "needs user judgment" is the right class — but the decision-relevant material you hand the user should be measured, not assumed.
+커넥터의 **해제**는 여전히 앱 UI 영역이므로 분류는 "사용자 판단"이 맞다. 하지만 사용자에게 넘기는 판단 재료는 실측이어야 한다.
 
-Don't use `claude mcp list`'s "Connected" label as your evidence — a server with expired auth or a dead endpoint can still show Connected. Real measurement: Drive/Calendar/n8n all showed Connected in `claude mcp list`, but the init event showed `needs-auth` for them, the only tools they exposed were `authenticate`/`complete_authentication`, and one of those endpoints returned HTTP 404.
+사용자가 커넥터 해제를 승인했더라도 그 승인은 Computer Use·브라우저·데스크톱 UI 자동화 권한을 포함하지 않는다. 현재 요청에서 UI 자동화를 명시적으로 허용하지 않았다면 앱을 조작하지 말고 수동 해제 경로를 안내한다. 플랫폼이나 도구에 UI 제어 권한이 이미 있어도 이 경계는 바뀌지 않는다.
 
-Classify into three states based on the init event, and report them:
+`claude mcp list`의 "Connected" 표시를 근거로 쓰지 않는다 — 인증이 만료됐거나 엔드포인트가 죽은 서버도 Connected로 나온다. 실측: Drive/Calendar/n8n이 `claude mcp list`에서 Connected였지만 init 이벤트에서는 `needs-auth`였고, 노출 툴이 `authenticate`/`complete_authentication`뿐이었으며, 그중 하나는 엔드포인트가 HTTP 404였다.
 
-| State | Decision material |
+init 이벤트 기준으로 3분류해 보고서에 싣는다:
+
+| 상태 | 판단 재료 |
 |---|---|
-| Alive | Real functional tools are loaded. Confirm actual-use evidence separately |
-| Needs auth | `needs-auth`, or the only exposed tools are `authenticate`/`complete_authentication` — **connected but unusable.** Either re-authenticate or disconnect |
-| Dead | Connection failed / endpoint error. Just taking up space in the name list — recommend disconnecting |
+| 살아 있음 | 실제 기능 툴이 로드됨. 실사용 증거는 별도로 확인 |
+| 인증 필요 | `needs-auth`이거나 노출 툴이 `authenticate`/`complete_authentication`뿐 — **연결돼 있지만 쓸 수 없다.** 재인증하거나 해제하거나 둘 중 하나 |
+| 죽음 | 연결 실패·엔드포인트 오류. 이름 목록만 축내고 있으므로 해제 권고 |
 
-## Don't overstate name-list savings
+## 이름 목록 절감을 과장하지 않기
 
-A deferred MCP tool's schema isn't loaded until it's called. Turning off a connector actually reduces the **tool name list and each server's usage notes** — not the entire "MCP tools (deferred)" figure in `/context`. Don't carry that figure over as expected savings. The honest claims are "the name count dropped by N" (before/after init-event comparison) and "a layer nobody uses disappeared from the list, which simplifies routing."
+deferred MCP 툴의 스키마는 호출 전까지 로드되지 않는다. 커넥터를 꺼서 실제로 줄어드는 것은 **툴 이름 목록과 서버별 지침문**이지 `/context`의 "MCP 툴(deferred)" 수치 전체가 아니다. 그 수치를 예상 절감으로 옮겨 적지 않는다 — 정직한 근거는 "이름이 N개 줄었다"(init 이벤트 전후 비교)와 "쓸 일 없는 층이 목록에서 사라져 라우팅이 단순해진다"이다.
 
-## Codex-side runtime verification
+## Codex 쪽 런타임 검증
 
-**Honestly, as of this writing it hasn't been confirmed whether Codex CLI has a procedure equivalent to Claude's headless init event.** Don't invent a specific command name here — instead, approach it in this order:
+**정직하게 말해 이 문서 작성 시점 기준, Claude의 헤드리스 init 이벤트에 대응하는 검증 절차가 Codex CLI에 있는지 확인되지 않았다.** 여기서 확실한 명령 이름을 지어내지 않는다 — 대신 다음 순서로 접근한다:
 
-1. Check `codex --help` and its subcommands' `--help` for a headless/non-interactive mode or an option that dumps session state as JSON. If one exists, look in that output for fields corresponding to loaded MCP servers, plugins, and active hooks, and use it the same way as Claude's init event (before/after comparison). If you find it, add the method to this document so the next audit can reuse it.
-2. If no such mechanism turns up, drop verification to two fallback steps:
-   - **Re-parse the file**: re-read config.toml, confirm it still parses as valid TOML, and confirm the intended section is actually gone/changed. This only proves "the intended bytes made it into the file" — it's not a guarantee the runtime reads it.
-   - **Ask the user for a smoke test**: ask the user to open a fresh Codex session and directly confirm whether the given MCP server/plugin/hook is off (or on). Point out specifically what to look for (e.g. "does the `<server-name>` MCP tool still show up in a new session").
-3. Either way, honestly record it in the report and audit record as **"unverified (Codex, no headless verification method)."** Don't upgrade it to "applied" — this is exactly to avoid repeating, on the Codex side, the same mistake that happened on the Claude side when trusting a file re-read alone led to reporting "verified" while roughly 180 MCP tools stayed loaded for hours.
+1. `codex --help` 및 하위 명령 `--help`에서 헤드리스/비대화형 실행 모드나 세션 상태를 JSON으로 뱉는 옵션이 있는지 먼저 찾는다. 있으면 그 출력에서 로드된 MCP 서버·플러그인·활성 훅 목록에 해당하는 필드를 찾아 Claude의 init 이벤트와 같은 방식(변경 전/후 비교)으로 쓴다. 찾았으면 이 문서에 그 방법을 추가해 다음 감사부터 재사용한다.
+2. 그런 수단을 못 찾았으면, 검증은 다음 두 단계로 낮춘다:
+   - **파일 재파싱 확인**: config.toml을 다시 읽어 TOML로 정상 파싱되는지, 의도한 섹션이 실제로 없어졌는지/바뀌었는지 확인한다. 이건 "파일에 의도한 바이트가 들어갔다"만 증명한다 — 런타임이 그걸 읽는다는 보장은 아니다.
+   - **사용자 스모크 테스트 요청**: 사용자에게 Codex 세션을 새로 하나 열어서 해당 MCP 서버·플러그인·훅이 꺼졌는지(또는 켜졌는지) 직접 확인해달라고 요청한다. 구체적으로 무엇을 봐야 하는지 짚어준다 (예: "새 세션에서 `<서버명>` MCP 툴이 여전히 뜨는지").
+3. 두 경우 모두 보고서와 감사 기록에 **"미검증(Codex, 헤드리스 검증 수단 없음)"**이라고 정직하게 남긴다. "적용 완료"로 격상하지 않는다 — Claude 쪽에서 파일 재독만 믿고 "검증 완료"라 보고했다가 MCP 툴 180개가 몇 시간 동안 계속 로드된 사고와 같은 실수를 Codex 쪽에서도 반복하지 않기 위함이다.
 
-If a reliable headless verification method for Codex is confirmed in the future, replace this section with that procedure and update the "unverified (Codex)" labeling rule in Phase 4/apply-protocol.md accordingly.
+향후 Codex에 신뢰할 만한 헤드리스 검증 수단이 확인되면, 이 절을 그 절차로 교체하고 Phase 4/apply-protocol.md의 "미검증(Codex)" 표기 규칙도 함께 갱신한다.

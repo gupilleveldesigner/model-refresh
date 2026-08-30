@@ -1,8 +1,8 @@
 ---
 name: puzzle-balance
-description: Adjusts difficulty balance for beta-puzzle. Use for chapter-level rebalancing requests.
+description: beta-puzzle의 난이도 밸런스를 조정한다. 챕터 단위 리밸런싱 요청에 사용.
 ---
 
 # puzzle-balance
 
-(fixture body omitted)
+(픽스처 본문 생략)

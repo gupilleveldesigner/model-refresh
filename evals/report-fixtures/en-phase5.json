@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "report_id": "model-refresh-fixture-en-phase5",
+  "generated_at": "2026-08-30T19:00:00+09:00",
+  "locale": "en-US",
+  "title": "Model Refresh Report",
+  "target_model": "Fable 5",
+  "hosts": ["claude", "codex"],
+  "phase3": {
+    "status": "AWAITING_APPROVAL",
+    "summary": "The setup is lean; one duplicated instruction should be narrowed.",
+    "scores": {
+      "context_fitness": {"value": 0.84, "confidence": "high", "evidence": "measured context"},
+      "runtime_hygiene": {"value": 0.82, "confidence": "high", "evidence": "runtime checks"},
+      "cross_tool_consistency": {"value": 0.80, "confidence": "high", "evidence": "hash comparison"},
+      "skill_usage_fit": {"value": 0.78, "confidence": "medium", "evidence": "targeted usage segments"},
+      "eval_freshness": {"value": 0.70, "confidence": "medium", "evidence": "mutation inventory"}
+    },
+    "metrics": [
+      {"label": "Resident context", "value": "52K / 1M", "ratio": 0.052, "tone": "good"},
+      {"label": "Blocking", "value": "0", "ratio": 0, "tone": "good"},
+      {"label": "Approval items", "value": "1", "ratio": 0.2, "tone": "warn"}
+    ],
+    "host_lanes": [
+      {"name": "CLAUDE", "summary": "hooks, plugins, connectors", "status": "CHECKED", "tone": "good"},
+      {"name": "CODEX", "summary": "skills and configuration", "status": "CHECKED", "tone": "good"}
+    ],
+    "findings": [
+      {
+        "id": "router-narrow",
+        "label": "NARROW",
+        "category": "Instructions",
+        "severity": "major",
+        "priority": 10,
+        "highlight": true,
+        "title": "One router rule is broader than its evidence",
+        "summary": "The rule activates for unrelated Markdown work and should be narrowed.",
+        "evidence": ["three unrelated invocations", "no project dependency"],
+        "scope": "project",
+        "target": "project router",
+        "action": "narrow the trigger",
+        "recovery": "restore the timestamped backup",
+        "approval_required": true,
+        "diff": "--- a/AGENTS.md\n+++ b/AGENTS.md\n@@\n-Run for every Markdown file.\n+Run only for wiki mutation requests.\n",
+        "diff_sha256": ""
+      }
+    ]
+  },
+  "phase5": {
+    "status": "COMPLETE",
+    "completed_at": "2026-08-30T19:20:00+09:00",
+    "scores": {
+      "context_fitness": {"value": 0.90, "confidence": "high", "evidence": "remeasured context"},
+      "runtime_hygiene": {"value": 0.88, "confidence": "high", "evidence": "runtime verification"},
+      "cross_tool_consistency": {"value": 0.90, "confidence": "high", "evidence": "post-change hash comparison"},
+      "skill_usage_fit": {"value": 0.86, "confidence": "medium", "evidence": "targeted regression"},
+      "eval_freshness": {"value": 0.80, "confidence": "medium", "evidence": "mutation rerun"}
+    },
+    "results": [
+      {
+        "finding_id": "router-narrow",
+        "decision": "approve",
+        "applied": true,
+        "verification": "PASS",
+        "summary": "The trigger was narrowed and unrelated Markdown work no longer activates it.",
+        "backup": "redacted backup path"
+      }
+    ],
+    "remaining": []
+  },
+  "share": {
+    "title": "MODEL REFRESH",
+    "subtitle": "PRIVACY-SAFE LOCAL AUDIT",
+    "findings": ["Context fit improved", "Runtime verification passed", "No blocking findings"]
+  }
+}

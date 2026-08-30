@@ -1,6 +1,6 @@
 # Global Instructions
 
-## Project Structure
+## 프로젝트 구조
 
 ```
 src/
@@ -11,36 +11,36 @@ tests/
 docs/
 ```
 
-## Tech Stack
+## 기술 스택
 
-React 18, TypeScript 5.4, Vite, Vitest, Tailwind CSS. Package manager is npm.
+React 18, TypeScript 5.4, Vite, Vitest, Tailwind CSS. 패키지 매니저는 npm.
 
-## Build and Test
+## 빌드와 테스트
 
-- Dev server: `npm run dev`
-- Build: `npm run build`
-- Test: `npm test`
+- 개발 서버: `npm run dev`
+- 빌드: `npm run build`
+- 테스트: `npm test`
 
-## Coding Principles
+## 코딩 원칙
 
-- Write clean code.
-- Handle errors properly.
-- Add tests.
-- Keep functions short.
+- 깨끗한 코드를 작성할 것.
+- 에러를 적절히 처리할 것.
+- 테스트를 추가할 것.
+- 함수는 짧게 유지할 것.
 
-## Response Language
+## 응답 언어
 
-Respond in Korean unless the user requests another language.
+사용자가 다른 언어를 요청하지 않는 한 한국어로 답한다.
 
-## No-Deploy Rule
+## 배포 금지 규칙
 
-Never push directly to the `main` branch. Always go through a PR.
+`main` 브랜치에 직접 푸시하지 않는다. 반드시 PR을 거친다.
 
-## Generated Files
+## 생성 파일
 
-Never edit files under `src/generated/` directly — they're regenerated from the schema.
+`src/generated/` 아래 파일은 절대 직접 수정하지 않는다 — 스키마에서 재생성된다.
 
-## E2E Tests
+## E2E 테스트
 
-E2E runs on the in-house `qa-runner`, not the default Playwright runner. The test DB
-must be up via `docker compose up qa-db` before running.
+E2E는 기본 Playwright 러너가 아니라 사내 `qa-runner`로 돌린다. 실행 전에
+`docker compose up qa-db`로 테스트 DB가 떠 있어야 한다.

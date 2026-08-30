@@ -1,127 +1,147 @@
 ---
 name: model-refresh
-description: A workflow that audits every AI coding agent setup installed on this machine (Claude Code's `~/.claude`, Codex CLI's `~/.codex` — whichever exist) — after a new model ships, or whenever context feels bloated — and diets it to match the model's actual capability. Judges the *providers* of instructions (plugins, injected hooks, agent descriptions, skill list, MCP connectors), the *content* of instructions (global/project CLAUDE.md/AGENTS.md, line by line), and whether the same skill exists as an independent duplicate copy across the two tools, all against one standard: "can the model figure this out on its own?" Use this skill whenever the request is: "clean up my setup", "context diet", "a new model shipped, refresh my config", "check what's bloated", "analyze /context for me", "trim/clean up CLAUDE.md or AGENTS.md", "I ran /doctor and nothing changed", "a hook keeps injecting something weird", "the same notice interrupts every prompt", "opening a specific file triggers an irrelevant notice", "there are too many skills unrelated to this project", "I want to clean up MCP connectors", "a connector says it's connected but doesn't actually work", "audit my Claude and Codex setup together", "clean up my Codex setup too". For a one-line config change (add a permission, set an env var, write a new hook), the update-config skill is the right one — this skill is for a full setup audit that goes through an approval gate before changing anything. Invoke directly with /model-refresh; /model-refresh deep extends it with a safe-mode baseline comparison.
+description: 새 모델 출시나 컨텍스트 비대화 때 이 머신의 Claude Code·Codex 셋업을 감사하고 현재 모델에 맞게 다이어트한다. 플러그인·훅·에이전트·스킬·MCP·CLAUDE.md/AGENTS.md, 도구 간 중복, 완료 검사 만료를 판정하며, 스킬의 삭제·보존·통합·수정 후보는 최근 로컬 사용 증거로 검증한다. "셋업 정리", "컨텍스트 다이어트", "새 모델 나왔으니 최신화", "뭐가 비대한지 봐줘", "/context 분석해줘", "CLAUDE.md/AGENTS.md 다듬어줘/정리해줘", "닥터 돌렸는데 그대로야", "훅이 자꾸 이상한 걸 주입해", "상관없는 스킬이 너무 많아", "어떤 스킬을 남기거나 합쳐야 하는지 봐줘", "MCP 커넥터 정리", "Claude랑 Codex 셋업 같이 봐줘" 요청에 사용한다. `/model-refresh deep`은 세이프 모드 기준선 비교와 전체 행동 표본까지 확장한다. 설정 한 줄 변경이나 개별 스킬 제작 요청에는 사용하지 않는다.
 ---
 
-# model-refresh — setup audit and diet
+# model-refresh — 셋업 감사와 다이어트
 
-## Core principle
+## 핵심 원칙
 
-There is exactly one judging criterion: **can the model figure this out on its own?** If yes, that instruction or mechanism was a corrective device for an older-generation model, and today it is pure context cost and a source of behavioral distortion. This standard comes from advice by Boris Cherny (creator of Claude Code), and it should be re-applied every time a new model ships — a setup is always tuned for the model that's two generations behind the current one. This standard is tool-agnostic — Claude Code's CLAUDE.md and Codex's AGENTS.md get judged by the exact same question.
+판정 기준은 하나다: **"모델이 스스로 알아낼 수 있는 것인가?"** 그렇다면 그 지침·장치는 구세대 모델용 교정 장치이고, 지금은 컨텍스트 비용이자 행동 왜곡 요인이다. 이 기준은 Boris Cherny(Claude Code 창작자)의 조언에서 온 것으로, 새 모델이 나올 때마다 반복 적용해야 한다 — 셋업은 항상 2세대 전 모델에 맞춰 튜닝돼 있기 때문이다. 이 기준은 도구를 가리지 않는다 — Claude Code의 CLAUDE.md든 Codex의 AGENTS.md든 같은 질문으로 판정한다.
 
-The audit covers three layers: the **providers** of instructions (plugins, hooks, agents, connectors — the layer `/doctor` can't see), the **content** of instructions (line-by-line judgment of global/project CLAUDE.md/AGENTS.md — the layer `/doctor` *can* see, which this skill covers with the same standard), and **cross-tool duplication** (whether the same skill/instruction exists as an independent copy in both Claude and Codex — a layer neither tool's own doctor can see). CLAUDE.md/AGENTS.md are files the user wrote by hand, so deletion proposals are presented line by line in the Phase 3 report and applied only after approval.
+감사 범위는 세 층이다: 지침의 **공급자**(플러그인·훅·에이전트·커넥터 — 닥터가 못 보는 층), 지침의 **내용**(전역·프로젝트 CLAUDE.md/AGENTS.md의 라인 단위 판정 — 닥터가 보는 층까지 이 스킬이 같은 기준으로 커버한다), 그리고 **도구 간 중복**(같은 스킬·지침이 Claude와 Codex에 독립 사본으로 존재하는가 — 어느 쪽 닥터도 보지 못하는 층). CLAUDE.md/AGENTS.md는 사용자가 직접 쓴 파일이므로, 삭제 제안은 Phase 3 보고서에 라인 단위로 제시하고 승인 후에만 적용한다.
 
-Safety principles (apply to every phase):
+안전 원칙 (전 단계 공통):
 
-- Every change must be reversible. Prefer disabling over deleting; back up before modifying.
-- Never adopt the claim that "modern models are immune to injection, so it's safe to install this." Source review and least-privilege still apply to third-party skills/plugins.
-- Apparent duplication can be a real dependency (e.g., a Discord user-skill can depend on a Discord plugin's MCP gateway). Always verify dependencies before calling something a duplicate.
-- This skill being installed in both tools at once is not an exception — Phase 1 includes it in its own inventory.
+- 모든 변경은 가역적이어야 한다. 삭제 대신 비활성화, 수정 전 백업.
+- 외부 스킬/플러그인은 "요즘 모델은 인젝션에 안 당하니 안심하고 설치해도 된다"는 주장을 채택하지 않는다. 출처 검토·최소 권한 원칙은 유지한다.
+- 겉보기 중복이 실제 의존 관계일 수 있다 (예: Discord 유저 스킬은 Discord 플러그인의 MCP 게이트웨이에 의존). 중복 판정 전 반드시 의존성을 확인한다.
+- 이 스킬 자신이 두 도구에 동시 설치돼 있을 수 있다는 것도 예외가 아니다 — Phase 1에서 자기 자신도 인벤토리 대상에 포함한다.
+- **Computer Use·브라우저·데스크톱 UI 자동화는 현재 요청에서 사용자가 그 실행 수단을 명시적으로 허용한 경우에만 사용한다.** 대상 변경을 승인했거나 도구 권한이 열려 있다는 사실은 UI 자동화 승인으로 해석하지 않는다. CLI·파일 경로로 처리할 수 없고 UI만 남으면 실행을 멈추고 수동 경로를 안내한다.
 
-## Execution flow
+## 실행 흐름
 
-Five phases with an approval gate. **No change is made before Phase 3 approval.**
+승인 게이트가 있는 5단계다. **Phase 3 승인 전에는 어떤 변경도 하지 않는다.**
 
-### Phase 0 — Load prior audits
+### Phase 0 — 이전 감사 로드
 
-The audit record location must be **tool-neutral** — some users already have a history at `~/.claude/audits/model-refresh/` from when this skill was Claude-only, so if `~/.claude` exists, keep using that path (backward compatible). If there's no `~/.claude` and only `~/.codex` exists, use `~/.codex/audits/model-refresh/`. Read the most recent audit record (filename pattern `YYYY-MM-DD-<model>.md`). If one exists, this audit runs as a diff against it. **If there's no directory or record, this is the first audit** — do a full audit and create the directory in Phase 5.
+감사 기록 위치는 **도구 중립**이어야 한다 — 이 스킬이 Claude 전용으로 시작했던 과거 이력 때문에 `~/.claude/audits/model-refresh/`를 쓰던 사용자가 있으므로, `~/.claude`가 존재하면 그 경로를 그대로 쓴다(하위 호환). `~/.claude`가 없고 `~/.codex`만 있는 환경이면 `~/.codex/audits/model-refresh/`를 쓴다. 새 실행은 `runs/<run-id>/report.json`과 `report.html`을 정본으로 사용한다. 최신 실행의 `report.json`을 먼저 읽고, 없으면 기존 `YYYY-MM-DD-<model>.md` 기록으로 폴백한다. 이전 기록이 있으면 diff 중심으로 진행하고, 없으면 전체 감사를 한다.
 
-The audit record is kept outside the skill folder, because the skill is distributable code and the audit record is that user's state — keeping it inside the skill folder would ship someone else's setup history, absolute paths, and project names along with the packaged skill (`package_skill.py` does not exclude `audits`), and the recipient's Phase 0 would read **someone else's record as their own baseline**. It would also mean reinstalling the skill wipes the user's own history.
+감사 기록은 이 스킬 폴더 안에 두지 않는다. 스킬은 배포 가능한 코드이고 감사 기록은 그 사용자의 상태이기 때문이다 — 스킬 폴더에 두면 패키징할 때 남의 셋업 이력·절대경로·프로젝트명이 함께 실려 나가고(`package_skill.py`는 `audits`를 제외 목록에 넣지 않는다), 받는 사람의 Phase 0이 **남의 기록을 자기 기준선으로** 읽는다. 스킬을 재설치하면 본인 이력이 사라지는 문제도 같이 생긴다.
 
-**Prior audit records alone are only half the picture.** This setup can also change through cleanups that didn't go through this skill (`/doctor`, Codex's own checks, manual edits, another session). Also sweep:
+**이전 감사 기록만 보면 그림이 반쪽이다.** 이 셋업은 이 스킬을 거치지 않은 정리(`/doctor`, Codex의 자체 점검, 수동 편집, 다른 세션)로도 바뀐다. 다음도 함께 훑는다:
 
-- Whether the current project has its own setup-audit or cleanup records (left behind by a `/doctor` session, etc.). Path conventions differ per project, so search for names like `*audit*`, `*doctor*`, `*setup*`.
-- The list of `~/.claude/backup-*` and `~/.codex/backup-*` directories — tells you past cleanup timestamps and targets.
-- Modification timestamps of each tool's core config files (feeds into Phase 0.5).
+- 현재 프로젝트 안에 셋업 감사·정리 기록이 있는지 (`/doctor` 세션 등이 남긴 것). 경로 규칙은 프로젝트마다 다르므로 `*audit*`, `*doctor*`, `*setup*` 같은 이름으로 훑는다
+- `~/.claude/backup-*`, `~/.codex/backup-*` 디렉토리 목록 — 과거 정리 시점과 대상 파일을 알려준다
+- 각 도구의 핵심 설정 파일 수정 시각 (Phase 0.5로 이어진다)
 
-Bring what you find into this audit's record **with its source noted** — so the next audit doesn't have to search several places again. If records disagree, the actual file on disk is authoritative.
+찾은 기록은 **출처와 함께** 이번 감사 기록에 요약해 옮긴다 — 다음 감사가 다시 여러 군데를 뒤지지 않도록. 기록끼리 어긋나면 파일 실물이 정본이다.
 
-When reading, **look at the "rejected items" section first.** Re-raising a proposal the user explicitly rejected in a prior audit or a recent session (e.g., changing `permissions.defaultMode`) with no change in circumstances is noise, and it makes the user trust the rest of the report less. To raise it again, you must state what changed since the rejection.
+읽을 때 **"거절 항목" 섹션을 먼저 본다.** 이전 감사나 최근 세션에서 사용자가 명시적으로 거절한 제안(예: `permissions.defaultMode` 변경)을 상황 변화 없이 다시 올리는 것은 노이즈이고, 사용자가 보고서 전체를 덜 신뢰하게 만든다. 다시 올리려면 "지난번 거절 이후 무엇이 달라졌는지"를 반드시 함께 적는다.
 
-### Phase 0.5 — Concurrent-session preflight
+### Phase 0.5 — 동시 세션 프리플라이트
 
-These setup files can be edited by another Claude Code or Codex session at the same time. This has actually happened: two sessions on the same day independently rewrote the same global config file without knowing about each other — one session's changes were silently overwritten, and a hook config one session had added became **dead config** when the other session disabled that plugin entirely.
+이 셋업 파일들은 다른 Claude Code/Codex 세션도 동시에 고칠 수 있다. 실제로 같은 날 두 세션이 서로 모른 채 같은 전역 설정 파일을 각각 다시 쓴 사고가 있었다 — 결과가 조용히 덮였고, 한쪽 세션이 넣은 훅 설정은 다른 쪽이 그 플러그인을 통째로 끄면서 **죽은 설정**이 됐다.
 
-1. In Phase 1, **record the size and modification time** of every inventory target file. Claude side: `~/.claude/CLAUDE.md`, `settings.json`, `settings.local.json`, `~/.claude.json`. Codex side: `~/.codex/AGENTS.md`, `config.toml` (whichever tools exist).
-2. If any file changed earlier today, start from the premise that you don't know whose change it was — treat it as **current state**, not an audit target, and ask the user "this file changed at N o'clock today, does that ring a bell?"
-3. Right before Phase 4 apply, **re-read** the modification times of the same files and compare against the record from step 1. If anything differs, stop the apply and re-run the inventory (`apply-protocol.md` safety rule 9).
-4. If the same file changes again during the audit, don't apply — just report, and let the user decide the order. The worst outcome is two sessions each reporting "success" independently.
+1. Phase 1에서 인벤토리 대상 파일의 **크기와 수정 시각을 기록**한다. Claude 쪽은 `~/.claude/CLAUDE.md`·`settings.json`·`settings.local.json`·`~/.claude.json`, Codex 쪽은 `~/.codex/AGENTS.md`·`config.toml`(존재하는 도구만).
+2. 오늘 안에 바뀐 파일이 있으면 그 변경이 누구 것인지 모른다는 전제로 시작한다 — 감사 대상이 아니라 **현행 상태**로 취급하고, 사용자에게 "이 파일이 오늘 N시에 바뀌었는데 짐작 가는 작업이 있는지" 묻는다.
+3. Phase 4 적용 직전에 같은 파일들의 수정 시각을 **다시 읽어** 1의 기록과 비교한다. 달라졌으면 적용을 멈추고 인벤토리를 다시 뜬다 (`apply-protocol.md` 안전 규칙 7).
+4. 감사 도중에 같은 파일이 또 바뀌면 적용하지 말고 보고서만 내고 사용자에게 순서를 정하게 한다. 두 세션이 각자 "성공"을 보고하는 상황이 가장 나쁘다.
 
-Don't create a lock file — there's no way to enforce it across independent CLI processes, and a lock left behind by a crash becomes a new failure mode.
+락 파일은 만들지 않는다 — 독립 CLI 프로세스 간에 강제할 수단이 없고, 크래시 후 남은 락이 새 실패 모드가 된다.
 
-### Phase 1 — Inventory collection
+### Phase 1 — 인벤토리 수집
 
-**The audit target is every tool home that actually exists on this machine.** If `~/.claude` exists, audit it; if `~/.codex` exists, audit it. Both present → audit both; only one present → audit only that one — never assume a tool exists and error on it. If the user specifies a particular tool or path (testing with a fixture, a copy of another machine's setup, etc.), narrow the scope to that. If the target isn't the default (everything that exists), state that fact in the first line of the report.
+**감사 대상은 이 머신에 실제로 존재하는 도구 홈 전부다.** `~/.claude`가 있으면 감사하고, `~/.codex`가 있으면 감사한다. 둘 다 있으면 둘 다, 하나만 있으면 그것만 — 없는 도구를 가정해서 오류를 내지 않는다. 사용자가 특정 도구나 경로를 지정하면(픽스처 테스트, 다른 머신의 셋업 사본 등) 그쪽으로 범위를 좁힌다. 대상이 기본값(존재하는 전부)이 아니면 보고서 첫 줄에 그 사실을 밝힌다.
 
-Per-tool collection detail is delegated to dedicated reference files, so a single-tool user never has to read the other tool's rules every time:
+도구별 상세 수집 절차는 별도 참고 문서로 위임한다 — 한 도구만 쓰는 사용자가 다른 도구의 세부 규칙까지 매번 읽지 않도록:
 
-- **If Claude Code is present**, read `references/claude-inventory.md` and collect per that procedure.
-- **If Codex CLI is present**, read `references/codex-inventory.md` and collect per that procedure.
+- **Claude Code가 있으면** `references/claude-inventory.md`를 읽고 그 절차대로 수집한다.
+- **Codex CLI가 있으면** `references/codex-inventory.md`를 읽고 그 절차대로 수집한다.
 
-If both tools are present, after finishing each tool's inventory, check for **cross-tool duplication**: whether a same-named skill exists as an independent copy in both `skills/` directories (already sharing one canonical source via a junction/symlink is normal — just confirm, no diff needed), and if so whether the content is identical or different, and if different, which one is newer. Judgment method is in the "Cross-tool duplication" section of `references/audit-rules.md`.
+두 도구 모두 있으면, 각자의 인벤토리를 끝낸 뒤 **도구 간 중복**을 확인한다: 같은 이름의 스킬이 양쪽 `skills/`에 독립 사본으로 존재하는지(정션/심볼릭 링크로 이미 하나의 정본을 공유하고 있으면 정상 — diff 없이 확인만), 있다면 내용이 동일한지 다른지, 다르다면 어느 쪽이 최신인지. 판정 방법은 `references/audit-rules.md`의 "도구 간 중복" 절 참고.
 
-Two things are collected in common regardless of tool:
+스킬 인벤토리에는 가능하면 대화 본문을 열지 않고 최근 호출 횟수·마지막 호출·호스트·프로젝트를 함께 기록한다. 이 값은 후보를 고르는 보조 신호일 뿐이며, 호출 0회만으로 삭제하지 않는다.
 
-1. **Context usage output** (provided by the user): for Claude Code, `/context`; for Codex, whatever usage-inspection command applies (varies by version — check with `codex --help` etc.). Per-category token counts are the quantitative basis for every judgment. Don't ask again if it's already in the conversation. **Fallback**: if the user doesn't provide it, don't stop the audit — fall back to file-size-based estimates, but label every quantitative figure in the report as "estimated."
-2. **Usage habit data** (provided by the user, optional): Claude Code's `/usage`, etc. The audit target isn't just resident context — it's consumption habits too. Which skills/habits (excessive subagent spawning, long uncompacted sessions, etc.) are burning through the usage window. If the user provides it, factor it into judgments; if not, skip it.
+공통으로 수집하는 것 두 가지:
 
-### Phase 2 — Judgment
+1. **컨텍스트 사용량 출력** (사용자 제공): Claude Code면 `/context`, Codex면 해당하는 사용량 확인 명령(버전에 따라 다르므로 `codex --help` 등으로 확인). 카테고리별 토큰이 판정의 정량 근거다. 이미 대화에 있으면 다시 요청하지 않는다. **폴백**: 사용자가 제공하지 않으면 감사를 중단하지 말고 파일 크기 기반 추정으로 대체하되, 보고서의 모든 정량 수치에 "추정치" 표기를 붙인다.
+2. **사용 습관 데이터** (사용자 제공, 선택): Claude Code의 `/usage` 등. 상주 컨텍스트만이 아니라 소모 습관도 감사 대상이다 — 어떤 스킬·습관(서브에이전트 남발, 미압축 장기 세션 등)이 사용량 윈도우를 소진하는지. 사용자가 제공하면 판정에 반영하고, 없으면 생략한다.
 
-Read `references/audit-rules.md` and classify each item into one of four buckets:
+### Phase 2 — 판정
 
-- **Deletion candidate** — something the model can figure out on its own, no evidence of actual use, a duplicate stack.
-- **Keep** — project-specific information, confirmed real-use dependency.
-- **User judgment** — things only manageable from the app UI (connectors, etc.), matters of taste (status line, etc.).
-- **Cross-tool integration candidate** — the same skill/instruction exists as an independent copy in both tools. The default proposal isn't deletion — it's one canonical copy plus a junction (or symlink) for the other (deleting only one side would make that feature disappear from that tool). Follow the corresponding section in `references/audit-rules.md` for this judgment.
+`references/audit-rules.md`를 읽고 각 항목을 4분류한다:
 
-### Phase 2b — Completion-check expiry review
+- **삭제 후보** — 모델이 스스로 알아낼 수 있는 것, 실사용 증거 없는 것, 중복 스택
+- **보존** — 프로젝트 고유 정보, 실사용 의존성 확인된 것
+- **사용자 판단** — 앱 UI에서만 관리되는 것(커넥터 등), 취향 영역(상태줄 등)
+- **도구 간 통합 후보** — 두 도구에 독립 사본으로 존재하는 동일 스킬/지침. 삭제가 아니라 정본 하나 + 나머지는 정션(또는 심볼릭 링크)으로 묶는 걸 기본 제안으로 한다 (한쪽만 지우면 그 도구에서 그 기능이 사라진다). 이 판정은 `references/audit-rules.md`의 해당 절을 따른다.
 
-Read and run `references/eval-expiry.md`. Since the expiry trigger is precisely "a new model shipped," this step is half of what "refresh" means. Report the result as its own section in the Phase 3 report.
+스킬이 삭제·축소·통합·수정 후보가 되었거나 사용자가 스킬 효과 확인을 요청했다면 [`references/skill-usage-evidence.md`](references/skill-usage-evidence.md)를 읽는다. 세션 전체를 채점하지 말고 해당 스킬의 사용 구간만 확인해 기존 분류를 보정한다. 실사용 증거가 없거나 귀속이 모호하면 `증거 부족`으로 남기며 특정 사본을 고치지 않는다.
 
-### Phase 3 — Report and approval
+개별 스킬이나 사용 구간에는 점수·문자 등급을 매기지 않는다. Phase 3의 다섯 축 점수와 종합 문자 등급은 스킬 성적이 아니라 현재 `model-refresh` 셋업 전체의 건강도를 요약하는 별도 지표다.
 
-Present the audit report and **wait for explicit approval**. Report format:
+### Phase 2b — 완료 검사(eval) 만료 점검
 
+`references/eval-expiry.md`를 읽고 수행한다. 만료 트리거가 정확히 '새 모델 출시'이므로 이 단계는 refresh의 절반이다. 결과는 Phase 3 보고서에 별도 섹션으로 싣는다.
+
+### Phase 3 — 보고와 승인
+
+[`references/report-contract.md`](references/report-contract.md)를 읽고 감사 결과를 구조화된 `report.json`과 자체 포함 `report.html`로 만든다. 사용자의 현재 대화 언어로 HTML 하나만 생성한다. 다른 언어 번역이나 전환 UI를 함께 넣지 않는다.
+
+1. 감사 루트 아래에 고유 `runs/<run-id>/`를 만들고 `report.json`을 작성한다.
+2. 건강도를 다섯 축으로 기록한다: 컨텍스트 적합성 25%, 런타임 위생 25%, 도구 간 정합성 20%, 스킬 실사용 적합성 20%, 완료 검사 신선도 10%. 근거가 부족한 축은 `null`과 신뢰도를 남긴다.
+3. 중요 발견만 `highlight: true`로 두어 가변 개수 Top findings 카드에 올린다. 보존 근거(`KEEP`)도 중요하면 포함한다.
+4. 삭제·축소·통합·수정안에는 실제 unified diff와 복구 방법을 넣는다. diff가 없는 앱 UI 항목은 대상·확인 경로·예상 결과를 넣는다.
+5. 다음 명령으로 B안 디자인의 보고서를 생성하고 브라우저에서 연다.
+
+   ```text
+   python "<SKILL_ROOT>/scripts/render_report.py" "<RUN_DIR>/report.json" --output "<RUN_DIR>/report.html" --open
+   ```
+
+6. 채팅에는 등급·핵심 발견과 `report.html` 절대 링크만 간결하게 제시하고 승인을 기다린다.
+
+HTML은 항목별 승인·거절·보류와 메모를 받아 `decisions.json`을 다운로드한다. 선택은 브라우저 `localStorage`에 임시 보존되지만 다운로드한 JSON이 결정 내용의 정본이다. 다만 결정 JSON은 실행 권한이 아니다. Phase 4 직전에 사용자가 현재 채팅에서 그 결정대로 진행하라고 다시 확인해야 한다.
+
+도구가 하나뿐인 환경에서는 도구 간 비교 레인을 생략한다 — 없는 축을 억지로 채우지 않는다.
+
+"예상 절감"에는 **출처를 함께 적는다** (`/context` 카테고리 실측 / init 이벤트 전후 비교 / 파일 크기 추정). deferred MCP 수치를 그대로 절감으로 옮기지 않는다 — `references/runtime-verify.md` 마지막 절 참고. 빈도 주장은 `audit-rules.md` 기준 3의 증거 요건을 통과한 것만 싣는다.
+
+`decisions.json`의 `report_id`, `report_sha256`, `finding_id`, `diff_sha256`을 현재 Phase 3 보고서와 대조한다. 미결정 항목이 있으면 적용하지 않고 HTML로 돌아가 결정을 마치게 한다. 승인 안 된 항목은 건드리지 않는다. CLAUDE.md 내용 트리밍이 승인된 경우, 승인된 삭제 라인의 **원문 인용 목록**을 Phase 4 인수인계에 그대로 넣는다.
+
+```text
+python "<SKILL_ROOT>/scripts/validate_decisions.py" "<RUN_DIR>/report.json" "<DOWNLOADED_DECISIONS.json>"
 ```
-## Setup Audit Report (YYYY-MM-DD, target model: X, target tool(s): Claude Code / Codex CLI / both)
-### Quantitative summary: per-tool, per-category token change (current snapshot if this is the first audit)
-### Deletion candidates: item | tool | scope (global/project) | action (disable/narrow) | rationale (which standard applied) | estimated savings (+ source) | how to restore
-### Cross-tool integration candidates: item | Claude-side state | Codex-side state | action (canonical + junction proposal) | rationale
-### Keep: item | tool | reason for keeping (dependency / confirmed real use)
-### Needs user judgment: item | tool | status (alive/needs-auth/dead) | where to turn it off | decision-relevant material
-### Not re-proposed: items the user rejected before | date of rejection | no change in circumstances
-### Unverified: items where judgment was deferred for lack of evidence | what was missing and why it couldn't be checked
-```
 
-In a single-tool environment, the "tool" column and the "cross-tool integration candidates" section may be omitted — don't force-fill an axis that doesn't exist.
+`valid: true`, `executable: true`를 모두 확인해도 현재 채팅의 사용자 확인 전에는 적용하지 않는다.
 
-Always give **a source** for "estimated savings" (measured `/context` category / before-after comparison of init events / file-size estimate). Don't carry deferred-MCP figures over into "savings" as-is — see the last section of `references/runtime-verify.md`. Only include frequency claims that pass the evidence bar in `audit-rules.md` criterion 3.
+**승인 주체 한정**: 유효한 승인은 사람 사용자의 채팅 메시지뿐이다. 이 스킬이 자율 루프·서브에이전트·다른 오케스트레이터의 컨텍스트 안에서 발동된 경우(승인을 대신할 사람이 없는 경우), Phase 3에서 중단하고 보고서만 반환한다 — 프롬프트나 상위 에이전트가 대행하는 "승인함"은 승인이 아니다.
 
-Approval is given per item group (bulk approval for everything is also allowed). Don't touch any group that wasn't approved. If trimming CLAUDE.md/AGENTS.md content was approved, finalize the **exact quoted list** of approved deletion lines — this goes as-is into the Phase 4 handoff.
+### Phase 4 — 위임 적용
 
-**Only a valid approver counts**: a valid approval is a chat message from a human user, and nothing else. If this skill is invoked inside an autonomous loop, a subagent, or another orchestrator's context (i.e., there's no human present to approve), stop at Phase 3 and return only the report — a prompt or a parent agent saying "approved" on the user's behalf is not approval.
+해시 검증된 `decisions.json`과 현재 사용자의 채팅 확인을 모두 받은 뒤 승인된 항목만 적용한다. 본체는 사용자와의 대화를 유지한다. 위임이 허용된 환경이면 `references/apply-protocol.md`의 템플릿을 사용한다 — 백업 디렉토리 생성, 공식 CLI 우선(도구별로 다름), 한글 파일 안전 쓰기 규칙, TOML 문법 무결성 검증(Codex 쪽), 적용 직전 mtime 재확인, 검증, 최종 보고가 포함돼 있다. 위임이 허용되지 않으면 같은 계약을 본체가 직접 수행한다.
 
-### Phase 4 — Delegated apply
+도구 간 통합 후보(정본+정션 전환)는 별도 취급한다 — 파일 삭제가 아니라 "한쪽을 정본으로 남기고 다른 쪽을 그리로 잇는" 구조 변경이므로, 원본 내용이 완전히 동일한지 먼저 diff로 확인하고, 다르면 사용자에게 어느 쪽을 정본으로 할지 묻는다(자동으로 최신 쪽을 고르지 않는다).
 
-Delegate only the approved items to a background agent. The main session keeps talking to the user. The agent prompt uses the template in `references/apply-protocol.md` — it includes backup-directory creation, preferring the official CLI (differs per tool), safe-write rules for non-ASCII files, TOML syntax-integrity verification (Codex side), re-checking mtimes right before applying, verification, and a final report.
+MCP·플러그인·훅처럼 런타임 로딩에 영향을 주는 변경은 파일 재독으로 끝내지 않는다 — `references/runtime-verify.md`의 헤드리스 init 이벤트 절차(Claude 기준)로 실제 반영을 확인하고, 확인하지 못한 항목은 "미검증"으로 보고한다. Codex 쪽은 동등한 헤드리스 검증 절차가 아직 검증되지 않았다 — `references/runtime-verify.md`의 Codex 절을 먼저 확인하고, 방법이 없으면 파일 재독 + 사용자에게 직접 스모크 테스트를 요청하는 수준으로 낮추고 "미검증(Codex 런타임 확인 수단 없음)"이라고 정직하게 보고한다.
 
-Cross-tool integration candidates (canonical + junction conversion) are handled separately — it's a structural change ("keep one side as canonical, link the other to it"), not a file deletion, so first confirm via diff that the two originals are truly identical, and if they differ, ask the user which side should be canonical (never auto-pick the newer one).
+### Phase 5 — 기록
 
-Changes that affect runtime loading — MCP servers, plugins, hooks — aren't done being verified just because the file was re-read. Confirm actual effect using the headless init-event procedure in `references/runtime-verify.md` (Claude-side), and report anything you couldn't confirm as "unverified." Codex doesn't yet have an equally-verified headless procedure — check the Codex section of `references/runtime-verify.md` first; if there's no method, fall back to a file re-read plus asking the user to do a direct smoke test, and honestly report it as "unverified (no Codex runtime-check method)."
+적용 완료 후 같은 실행의 `report.json`에 `phase5`를 추가하고 같은 `report.html`을 다시 렌더한다. Phase 3 제안은 수정하지 않는다. Phase 5에는 승인·거절·보류, 실제 변경, 검증, 백업, 남은 항목, 적용 전→후 점수를 기록한다. 변경이 없으면 `NO_CHANGES`, 일부만 완료됐으면 `PARTIAL`, 모두 완료·검증됐으면 `COMPLETE`다.
 
-### Phase 5 — Record
+최종 보고서는 HTML에서 Phase 3/Phase 5를 전환해 볼 수 있어야 한다. 공유 PNG는 브라우저에서 1200×675로 생성하며 기본 개인정보 보호 모드를 사용한다. 절대경로·프로젝트명·구체 플러그인/커넥터명·사용자 메모·diff를 공유 이미지에 넣지 않는다.
 
-Once you receive the apply-completion report, record it in two places:
+적용 완료 보고를 받으면 두 곳에 기록한다:
 
-1. **The audit record file** (`YYYY-MM-DD-<model>.md` under the path chosen in Phase 0; outside the skill folder; create it if it doesn't exist) — the diff baseline for the next audit. Contents: target model, target tool(s), per-tool context snapshot at audit time, completion-check review results, the four-way classification, what was applied, deferred items, and a **"post-cleanup snapshot" field** (filled in during the next new session when the user provides context-usage data — this is what lets the next diff distinguish cleanup effect from new drift). Normalize the snapshot into a standard table (tool | category | tokens) rather than pasting raw output — the output format can change between versions.
-2. **Mirror into the knowledge vault (only if one exists)** — if the user maintains a vault or wiki for setup/ops knowledge, record it there too. Confirm the target with the user, or use the current project if it *is* that vault. Two rules:
-   - **Read the vault's own operating rules before touching it** (whatever `CLAUDE.md`/`AGENTS.md` points you to). Writing without understanding the layer structure pollutes the wrong layer — for example, a 1:1 source-summary layer is not where an audit log belongs.
-   - Add audit entries to the vault's **log/changelog** location, and update the relevant concept document if the audit changed an operating principle.
+1. **감사 실행 보고서** (`runs/<run-id>/report.json`, `report.html`) — 다음 감사의 diff 기준 정본. 기존 Markdown 기록은 하위 호환용으로 남기되 새 실행에서는 별도 장문 Markdown을 중복 생성하지 않는다.
+2. **지식 볼트에 반영 (있는 경우에만)** — 사용자가 셋업·운영 지식을 모으는 볼트나 위키를 쓰고 있으면 거기에도 남긴다. 대상은 사용자에게 확인하거나, 현재 프로젝트가 그런 볼트면 그것을 쓴다. 규칙 둘:
+   - **볼트를 수정하기 전에 그 볼트의 자체 규칙 문서를 먼저 읽는다** (`CLAUDE.md`/`AGENTS.md`가 가리키는 위키 운영 지침). 계층 구조를 모르고 쓰면 엉뚱한 계층을 오염시킨다 — 예를 들어 원문 1:1 요약 계층에는 감사 로그를 넣지 않는다.
+   - 감사 항목은 볼트의 **로그/변경 이력** 자리에 추가하고, 감사로 운영 원칙이 바뀌었으면 해당 개념 문서를 갱신한다.
 
-   If there's no vault, skip silently. This step is optional; item 1 (the audit record) is the source of truth.
+   볼트가 없는 환경이면 조용히 생략한다. 이 단계는 선택이고, 1번(감사 기록)이 정본이다.
 
-Finally, tell the user: the effect shows up starting next session, so compare before/after in a new session.
+마지막으로 사용자에게 알린다: 효과는 다음 세션부터 나타나므로, 새 세션에서 `/context`로 전후 비교하라고.
 
-## deep mode
+## deep 모드
 
-For `/model-refresh deep`, or when static analysis alone can't settle a judgment: read `references/deep-baseline.md` and walk through the safe-mode baseline comparison procedure. The idea: run your usual work with the whole setup turned off, and if the result is the same, that setup element had no reason to exist. Heavier than a standard audit, so only run it when the user explicitly wants it.
+`/model-refresh deep` 또는 정적 분석만으로 판정이 어려울 때: `references/deep-baseline.md`를 읽고 세이프 모드 기준선 비교 절차를 안내한다. 스킬이 주요 감사 대상이면 `references/skill-usage-evidence.md`의 범위를 전체 사용자 스킬 표본으로 넓힌다. 셋업을 전부 끈 상태에서 평소 작업을 돌려보고 결과가 같으면 그 셋업은 존재 이유가 없다는 실증 방식이다. 기본 감사보다 무겁기 때문에 사용자가 명시적으로 원할 때만 수행한다.

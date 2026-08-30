@@ -1,10 +1,8 @@
 #!/usr/bin/env node
-// PreToolUse(Read) hook — fixture for planting a defect.
-// Plants two things at once:
-//  1) The extension list includes document extensions (.md/.txt/.rst), so it false-positives
-//     in a documentation-heavy project.
-//  2) There's a 5-minute cooldown, so "it fires on every Read" is a false claim — frequency
-//     claims need evidence.
+// PreToolUse(Read) hook — 결함 심기용 픽스처.
+// 두 가지를 동시에 심는다:
+//  1) 확장자 목록에 문서 확장자(.md/.txt/.rst)가 들어 있어, 문서 위주 프로젝트에서 오탐한다.
+//  2) 5분 쿨다운이 있으므로 "매 Read마다 뜬다"는 주장은 틀리다 — 빈도 주장에 근거가 필요하다.
 
 const fs = require('fs');
 const path = require('path');

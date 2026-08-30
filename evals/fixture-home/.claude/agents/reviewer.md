@@ -1,18 +1,18 @@
 ---
 name: reviewer
-description: Agent specialized in code review.
+description: 코드 리뷰 전문 에이전트.
 
 <example>
-Context: The user asks for a PR review.
-user: "Can you review this PR?"
-assistant: "I'll spin up the reviewer agent to review it."
+Context: 사용자가 PR 리뷰를 요청한다.
+user: "이 PR 좀 봐줘"
+assistant: "reviewer 에이전트를 띄워 리뷰하겠습니다."
 </example>
 
 <example>
-Context: The user wants the code they just wrote reviewed.
-user: "Review the function I just wrote"
-assistant: "I'll review it with the reviewer agent."
+Context: 사용자가 방금 작성한 코드의 검토를 원한다.
+user: "방금 짠 함수 리뷰해줘"
+assistant: "reviewer 에이전트로 검토하겠습니다."
 </example>
 ---
 
-Review instructions body. (fixture)
+리뷰 지침 본문. (픽스처)

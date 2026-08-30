@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// PreToolUse hook — fixture for planting a defect.
-// This single script emits both (a) a notice on every call and (b) a real block decision.
-// Disabling it wholesale kills the guardrail in (b) too.
+// PreToolUse hook — 결함 심기용 픽스처.
+// 이 스크립트 하나가 (a) 매번 나가는 안내문과 (b) 실제 차단 결정을 동시에 낸다.
+// 통째로 끄면 (b)의 가드레일까지 죽는다.
 
 const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const toolName = input.tool_name;
 const toolInput = input.tool_input || {};
 
-// (b) Guardrail — blocks spawning a subagent with an unapproved model.
+// (b) 가드레일 — 승인되지 않은 모델로 서브에이전트를 띄우는 것을 차단한다.
 if (toolName === 'Agent') {
   const model = toolInput.model;
   const ALLOWED = ['sonnet', 'opus', 'haiku'];
@@ -17,14 +17,14 @@ if (toolName === 'Agent') {
         hookEventName: 'PreToolUse',
         permissionDecision: 'deny',
         permissionDecisionReason:
-          `[MODEL GUARD] "${model}" is not a valid subagent model in this environment.`
+          `[MODEL GUARD] "${model}" 은 이 환경에서 유효한 서브에이전트 모델이 아니다.`
       }
     }));
     process.exit(0);
   }
 }
 
-// (a) Notice — fires on every Bash call. No cooldown, no dedup.
+// (a) 안내문 — 매 Bash 호출마다 나간다. 쿨다운·중복 억제 없음.
 if (toolName === 'Bash') {
   console.log(JSON.stringify({
     continue: true,

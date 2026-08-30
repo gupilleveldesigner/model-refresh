@@ -1,71 +1,73 @@
-# Judgment rules
+# 판정 규칙
 
-## Base standard
+## 기본 기준
 
-Ask each item, in order:
+각 항목에 순서대로 묻는다:
 
-1. **Can the model figure this out on its own?** — Things visible from project files (build commands, folder structure), general best practices, "do it this way" procedural mandates are deletion candidates. Things the model can't know (project-specific constraints, team decisions, a tool choice that differs from the default) are kept.
-2. **Is there evidence of actual use?** — Look for real usage traces in: the memory directory (`~/.claude/projects/<project-slug>/memory/`), the project's own session records if any (e.g. a vault's `.session-memory/index.jsonl`), `~/.claude/projects/` transcripts, and the current conversation. It's a deletion candidate only when there's no evidence **and** the model could do it unaided (both conditions must hold). Distinguish "couldn't find evidence" from "no evidence exists" — a seasonal item (e.g., a cover-letter skill only used during hiring season) is expected to show no recent trace, so if its purpose implies periodic use, classify it as "needs user judgment," not a deletion candidate.
-3. **Does it distort behavior?** — Even at low token cost, a hard rule enforced on every turn ("always do X before responding," including via hook injection) carries a high distortion cost. This matters more than token count as a judgment basis.
+1. **모델이 스스로 알아낼 수 있는가?** — 프로젝트 파일을 보면 알 수 있는 것(빌드 명령, 폴더 구조), 일반 베스트 프랙티스, "이럴 땐 이렇게 하라"류 절차 강제는 삭제 후보. 모델이 알 수 없는 것(프로젝트 고유 제약, 팀 결정, 기본값과 다른 도구 선택)은 보존.
+2. **실사용 증거가 있는가?** — 다음 위치에서 실제로 쓰인 흔적을 찾는다: 메모리 디렉토리(`~/.claude/projects/<프로젝트 슬러그>/memory/`), 프로젝트의 세션 기록(있다면 — 예: 볼트의 `.session-memory/index.jsonl`), `~/.claude/projects/` 트랜스크립트, 현재 대화. 먼저 호출 메타데이터만 확인하고, 스킬이 실제 판정 후보가 된 경우에만 `skill-usage-evidence.md`의 사용 구간 분석을 적용한다. 증거가 없고 **그리고** 모델이 스스로 할 수 있는 일일 때만 삭제 후보다 (둘 다 충족해야 한다). "증거를 못 찾음"과 "증거가 없음"을 구분할 것 — 계절성 항목(예: 채용 시즌에만 쓰는 자소서 스킬)은 최근 흔적이 없는 게 정상이므로, 용도상 주기적 사용이 추정되면 삭제 후보가 아니라 "사용자 판단"으로 분류한다.
+3. **행동을 왜곡하는가?** — 토큰 비용이 작아도 "매 응답 전 반드시 X를 하라"류 강제 규칙(훅 주입 포함)은 왜곡 비용이 크다. 토큰보다 이쪽이 더 중요한 판정 근거다.
 
-   Because this is the most important criterion, **it also needs the strictest evidence bar.** You wouldn't claim a token number without asking for `/context` — don't claim an injection frequency by impression either. Only write frequency claims like "it fires every time" or "it shows up on every Bash call" in the report when you can point to one of:
-   - An unconditional code path confirmed by reading the hook script body (confirmed by the *absence* of branching, cooldowns, or dedup)
-   - An actual throttle/state file — frameworks often leave dedup records in a state directory (real example: `<framework-state-dir>/sessions/<session-id>/*-throttle.json` held the last-emitted time per message). If this file exists, it's direct evidence *against* "every time"
-   - An injection count you can actually count in the current transcript
+   가장 중요한 기준이므로 **증거 기준도 가장 엄격해야 한다.** 토큰 수치에는 `/context`를 요구하면서 주입 빈도는 인상으로 주장하면 안 된다. "매번 주입된다", "Bash 호출마다 뜬다" 같은 **빈도 주장은 다음 중 하나를 댈 수 있을 때만** 보고서에 쓴다:
+   - 훅 스크립트 본문에서 확인한 무조건 실행 경로 (분기·쿨다운·중복 억제가 **없음**을 읽어서 확인)
+   - 스로틀·상태 파일 실물 — 프레임워크는 중복 억제 기록을 상태 디렉토리에 남기는 경우가 많다 (실제 사례: `<프레임워크 상태 폴더>/sessions/<세션id>/*-throttle.json`에 메시지별 마지막 출력 시각이 있었다). 이 파일이 있으면 "매번"이 아니라는 직접 증거다
+   - 현재 트랜스크립트에서 실제로 셀 수 있는 주입 횟수
 
-   Without evidence, write "injection confirmed, **frequency unmeasured**." Real incident: a report claimed "it fires on every Bash call," but the plugin actually had a 5-minute per-message cooldown, and the report had to be publicly corrected. An overstated frequency claim can lead a user to disable a hook's guardrail output along with the noise.
+   근거가 없으면 "주입 존재 확인, **빈도 미측정**"이라고 쓴다. 실측: "Bash 호출마다 뜬다"고 보고했으나 플러그인이 메시지별 5분 쿨다운을 걸고 있어 보고를 공개 정정해야 했다. 과장된 빈도 주장은 사용자가 그 훅의 가드레일 출력까지 끄게 만든다.
 
-## Category-specific things to look for
+## 카테고리별 관찰 포인트
 
-- **Hooks (SessionStart · UserPromptSubmit · PreToolUse; on Codex, `config.toml`'s `[hooks.state.*]`)**: the unit of judgment isn't "the hook script" — it's **each distinct kind of output that hook produces**. It's common for one script to emit both (a) a notice injected every time and (b) an actual guardrail like `permissionDecision: "deny"`. If a notice is annoying and you disable the whole hook, the guardrail dies with it, and the user has no way to notice (real case: a delegation block and a model-routing check lived in the same script as the notice). So always **open the script body**, enumerate the kinds of output, and judge from there. A rule table planted by a framework is still a typical deletion candidate.
+- **스킬 실사용 증거**: `관찰 사용`, `호출 적합성`, `계약 준수`, `결과 기여`, `원인 귀속`을 분리한다. 세션 전체나 전체 셋업에 품질 점수를 만들지 않는다. 같은 이름의 호스트별 어댑터는 경로별로 유지하고, 귀속이 모호하면 특정 파일의 결함으로 처리하지 않는다. 개선안은 현재 지침의 공백이 실제 사용 구간에서 검증된 경우에만 만들며, 이미 충분한 지침을 모델이 무시한 실행 편차에는 문구를 덧붙이지 않는다.
 
-  Before disabling, always consider **narrowing** first. Narrowing techniques that have actually worked:
-  - **The trigger condition is wrong** → fix the condition list. Example: a documentation vault where the hook's file-extension list includes `.md`/`.txt`/`.rst`/`.mdx`, so a code-workflow notice fires every time a markdown file is read → remove the document extensions from the list.
-  - **A partial-disable token the framework already provides** → check the hook script body and the plugin docs for environment variables first. Many frameworks already have variables for "turn off just this hook" and "just lower the frequency" (real example: a targeted token shaped like `<PREFIX>_SKIP_HOOKS=<hook-name>` and a frequency-control variable shaped like `<PREFIX>_..._COOLDOWN_MS` — variable names differ per framework, so search the script directly for `process.env`/`os.environ` references). Putting it in the project-local `.claude/settings.local.json`'s `env` scopes it to that project only.
+- **훅(SessionStart·UserPromptSubmit·PreToolUse, Codex는 `config.toml`의 `[hooks.state.*]`)**: 판정 단위는 "훅 스크립트"가 아니라 **그 훅이 내는 출력 한 종류**다. 스크립트 하나가 (a) 매번 주입되는 안내문과 (b) `permissionDecision: "deny"` 같은 실제 가드레일을 동시에 내는 경우가 흔하다. 안내문이 거슬린다고 훅 전체를 끄면 가드레일까지 같이 죽고, 사용자는 그 사실을 눈치챌 계기가 없다 (실측: 위임 차단·모델 라우팅 검증이 안내문과 같은 스크립트에 있었다). 그래서 훅은 반드시 **스크립트 본문을 열어** 출력 종류를 나열한 다음 판정한다. 프레임워크가 심은 강제 규칙표는 여전히 대표적 삭제 후보다.
 
-    Verification caveat: settings' `env` **is passed to hook subprocesses but not to Bash tool subprocesses.** Printing it with `printenv` from Bash and getting nothing back is inconclusive, not proof it isn't applied — to actually check, add a temporary hook that echoes the value, then remove it right away.
-  - **A path/name-based false positive** → narrow the condition, or turn it off only for that project. Example: a notice like "start the wiki workflow immediately" injected on every prompt just because the path contains the word "Wiki."
+  비활성화 이전에 **좁히기**를 먼저 검토한다. 실제로 통한 좁히기 수단들:
+  - **트리거 조건이 틀린 경우** → 조건 목록을 고친다. 예: 문서 볼트인데 훅의 파일 확장자 목록에 `.md`/`.txt`/`.rst`/`.mdx`가 들어 있어 마크다운을 읽을 때마다 코드 워크플로 안내가 주입됨 → 확장자 목록에서 문서 확장자를 뺀다.
+  - **프레임워크가 제공하는 부분 비활성 토큰** → 훅 스크립트 본문과 플러그인 문서에서 환경변수를 먼저 찾는다. 많은 프레임워크가 "이 훅만 끄기"와 "빈도만 낮추기"를 위한 변수를 이미 갖고 있다 (실제 사례에서는 `<PREFIX>_SKIP_HOOKS=<훅이름>` 형태의 지목형 토큰과 `<PREFIX>_..._COOLDOWN_MS` 형태의 빈도 조절 변수가 있었다 — 변수명은 프레임워크마다 다르므로 스크립트에서 `process.env`·`os.environ` 참조를 직접 찾는다). 프로젝트 로컬 `.claude/settings.local.json`의 `env`에 넣으면 그 프로젝트에서만 적용된다.
 
-  Disabling a hook entirely is the last resort, only **after confirming** there's no narrowing option. The report should always state "of what this hook outputs, what dies and what survives."
+    검증 주의: settings의 `env`는 **훅 하위 프로세스에는 전달되지만 Bash 도구 하위 프로세스에는 전달되지 않는다.** Bash로 `printenv`를 찍어 빈 결과가 나오는 것은 무결론이지 미적용이 아니다 — 확인하려면 값을 출력하는 임시 훅을 넣어 보고 곧바로 제거한다.
+  - **경로·이름 기반 오탐** → 조건을 좁히거나 그 프로젝트에서만 끈다. 예: 경로에 "Wiki"가 들어 있다는 이유만으로 매 프롬프트에 "위키 워크플로를 즉시 시작하라"가 주입됨.
 
-  Note: partial-disable tokens belong to that plugin. If the plugin is later disabled entirely, that config becomes **dead config** — when approving a plugin disable, add its plugin-specific env config to the cleanup list too.
-- **Plugins (Claude's `enabledPlugins`; Codex's `config.toml` `[plugins."name@marketplace"]`)**: an orchestration framework that injects dozens of skills plus MCP tools plus agents all at once (the rigid, step-enforcing kind) should be re-evaluated as a whole. A single-purpose plugin that provides a genuinely used feature leans toward keeping.
-- **Agent descriptions**: the `<example>` conversation blocks in a description are always-loaded pure cost — a trimming candidate. Routing language like "use the skill directly for a simple request" is kept. Never delete the agent file itself. Codex's `config.toml` `[agents.<name>]` gets the same standard.
-- **Skill list**: skill bodies are on-demand and cheap. The cost is the always-resident description list. Within one tool, if the same role has two copies (a plugin version and a user/project version), keep only the canonical one. Duplication that crosses **tools** (an independent copy in both Claude and Codex) isn't judged here — see "Cross-tool duplication" below, since deleting only one side removes that feature from that tool entirely, unlike a same-tool duplicate.
-- **Deferred MCP tools**: the schema is free until loaded, but the name list plus each server's per-server usage notes are injected every session. Judge connectors this project has no use for.
-- **CLAUDE.md/AGENTS.md (structure)**: the ideal is a short router plus detail delegated to on-demand files. A block planted by a framework (wrapped in marker comments) shares that framework's fate. **Hand-editing inside the markers (`<!-- X:START -->` … `<!-- X:END -->`) gets reverted the next time that framework's install/update script runs.** So there are only two stable ways to handle this block: (1) disable the framework itself and remove the block entirely, or (2) shrink the block's content through config the framework provides. Never report a hand-edit inside the markers as "applied" — if you did edit it, note in the audit record that "it reverts on the next install-script run." If long, rarely-used content is sitting resident, suggest moving it to a skill or on-demand file (placement priority: prompt → CLAUDE.md/AGENTS.md → skill → MCP).
-- **CLAUDE.md/AGENTS.md (content, line by line)**: apply the base standard to each line. Deletion candidates — anything visible from project files (build commands, folder-structure descriptions), general best practices, procedural mandates that exist to correct old-model mistakes. Keep — user policy/preference the model can't derive (language rules, publishing restrictions, security rules), a tool/path choice that differs from the default, project-specific constraints. Keep policy/preference lines regardless of length — the standard isn't "short, so harmless," it's "can't be derived, so keep." Present deletion proposals in the report line by line, with the original text quoted. When auditing both tools together, the exact same content (e.g. a response-language rule) appearing separately in CLAUDE.md and AGENTS.md is **not** a deletion candidate — the two tools don't read each other's router file, so this is required repetition, not duplication.
-- **Cross-tool duplication (Claude ↔ Codex)**: if `~/.claude/skills/<name>` and `~/.codex/skills/<name>` **both exist as real directories** (neither is a junction) with the same content, don't delete either — propose converting to **one canonical copy plus a junction (Windows) or symlink (Unix)** for the other. This makes it structurally impossible to edit one side, forget the other, and end up with the two tools reading different instructions.
-  - If the content already differs (one is newer, one is stale), don't auto-pick the newer one as canonical — ask the user which side should be canonical and whether anything from the other side's differences is worth keeping.
-  - If they're already sharing a canonical source via a junction/symlink, that's the healthy state — don't raise it as an integration candidate. Phase 1's link-status check is what tells you this.
-  - A Claude-only package format (a `.skill` bundle) coexisting with a Codex-facing manifest (`agents/openai.yaml`) inside the same canonical folder is normal structure — don't misjudge that as duplication either.
-  - If CLAUDE.md/AGENTS.md content contains a rule that only makes sense for one tool (e.g. a response-language rule that only Claude has), that's not "cross-tool duplication" — it's "a keep item specific to that tool." Don't propose copying it to the other tool unconditionally.
-- **Status line / HUD**: zero context tokens. Not a performance judgment — a taste matter → classify as "needs user judgment."
-- **Consumption habits (/usage)**: separately from resident context, audit habits that burn through the usage window — excessive subagent spawning, long sessions left uncompacted, high-fanout spawn workflows. Report this as a habit-correction recommendation, not a file deletion.
-- **Applied scope (global vs. project)**: **where** to turn off a deletion candidate is a separate decision from the judgment itself. Skills, agents, hooks, and MCP are assets shared across projects, so "not used in this project" doesn't mean "safe to turn off globally." Real incident: in one audit, eight skills specific to a different project were nearly proposed as global-disable candidates just because "not used in the current project." Disabling them globally would have silently broken that other project, and the user wouldn't have known until reopening it.
+  훅 전체 비활성화는 좁히기 수단이 없다고 **확인한 뒤**의 마지막 선택지다. 보고서에는 항상 "이 훅이 내는 출력 중 무엇을 죽이고 무엇을 살리는가"를 적는다.
 
-  Judgment order:
-  1. Is this item used by exactly one project, or several — grep the skill/agent name across other projects' CLAUDE.md/AGENTS.md, config, and session records too.
-  2. If several, **narrow it to project-local.** Claude's project-scoped mechanisms: `skillOverrides` in the project's `.claude/settings.local.json` (skills), `env` in the same file (hook tokens), `disabledMcpServers` under that project's key in `~/.claude.json` (MCP). Codex's: under that project's `[projects.'<absolute-path>']` table in `config.toml` (if it has project-specific settings), or the project-local `.codex/hooks.json` (hooks).
-  3. Only disable globally once you've confirmed "not used by any project."
+  주의: 부분 비활성 토큰은 그 플러그인 소유다. 나중에 플러그인을 통째로 끄면 그 설정은 **죽은 설정**으로 남는다 — 플러그인 비활성화를 승인할 때 그 플러그인 전용 env 설정도 함께 정리 대상에 올린다.
+- **플러그인 (Claude의 `enabledPlugins`, Codex의 `config.toml` `[plugins."이름@마켓플레이스"]`)**: 스킬 수십 개 + MCP 툴 + 에이전트를 한꺼번에 주입하는 오케스트레이션 프레임워크(리지드한 단계 강제형)는 통째로 재평가. 반면 실사용 기능을 제공하는 단일 목적 플러그인은 보존 쪽.
+- **에이전트 설명**: description의 `<example>` 대화 블록은 항상 로드되는 순수 비용 — 트리밍 후보. "단순 요청엔 스킬을 직접 쓰라"는 라우팅 문구는 보존. 에이전트 파일 자체는 삭제하지 않는다. Codex의 `config.toml` `[agents.<이름>]`도 같은 기준.
+- **스킬 목록**: 스킬 본문은 온디맨드라 싸다. 비용은 상주하는 설명문 목록. 같은 도구 안에서 같은 역할의 스킬이 두 벌(플러그인판 vs 유저/프로젝트판)이면 정본 한 벌만 남긴다. 도구를 **넘나드는** 중복(Claude와 Codex에 각각 독립 사본)은 이 절이 아니라 아래 "도구 간 중복" 절로 판정한다 — 한쪽만 지우면 그 도구에서 기능이 사라지므로 처리 방식이 다르다.
+- **deferred MCP 툴**: 스키마는 로드 전까지 무료지만 이름 목록 + 서버별 사용 지침문은 매 세션 주입된다. 이 프로젝트에서 쓸 일 없는 커넥터가 판정 대상.
+- **CLAUDE.md/AGENTS.md (구조)**: 짧은 라우터 + 상세는 온디맨드 파일 위임 구조가 이상형. 프레임워크가 심은 블록(마커 주석으로 둘러싸인 것)은 그 프레임워크와 운명을 같이한다. 마커(`<!-- X:START -->` … `<!-- X:END -->`) **안쪽을 손으로 고치면 그 프레임워크의 설치·갱신 스크립트가 다음 실행 때 원상복구한다.** 그래서 이 블록의 안정적인 처리는 둘뿐이다: ① 프레임워크 자체를 비활성화하고 블록을 통째로 들어내거나, ② 프레임워크가 제공하는 설정으로 블록 내용을 줄이거나. 마커 안쪽 부분 편집은 "적용됨"으로 보고하지 말고, 했다면 감사 기록에 "설치 스크립트 재실행 시 되돌아감"이라고 명시한다. 길고 가끔 쓰는 내용이 상주해 있으면 스킬/온디맨드 파일로의 이전을 제안한다 (배치 우선순위: 프롬프트 → CLAUDE.md/AGENTS.md → 스킬 → MCP).
+- **CLAUDE.md/AGENTS.md (내용, 라인 단위)**: 각 줄에 기본 기준을 적용한다. 삭제 후보 — 프로젝트 파일을 보면 알 수 있는 것(빌드 명령, 폴더 구조 설명), 일반 베스트 프랙티스, 구모델 실수 교정용 절차 강제. 보존 — 모델이 알아낼 수 없는 사용자 정책·선호(언어 규칙, 공개 금지 규칙, 보안 규칙), 기본값과 다른 도구·경로 선택, 프로젝트 고유 제약. 정책·선호 줄은 짧아도 반드시 보존한다 — "짧으니까 무해" 판정이 아니라 "파생 불가능하니까 보존" 판정이다. 삭제 제안은 원문 인용과 함께 라인 단위로 보고서에 싣는다. 두 도구를 함께 감사할 때 CLAUDE.md와 AGENTS.md에 **똑같은 내용**(예: 응답 언어 규칙)이 각각 따로 적혀 있어도 이건 삭제 후보가 아니다 — 두 도구는 서로의 라우터 파일을 읽지 않으므로 중복이 아니라 필수 반복이다.
+- **도구 간 중복 (Claude ↔ Codex)**: `~/.claude/skills/<이름>`과 `~/.codex/skills/<이름>`이 **둘 다 실물 디렉토리**(정션이 아님)로 존재하고 내용이 같은 스킬이면, 어느 한쪽을 지우는 게 아니라 **정본 하나 + 나머지는 정션(Windows) 또는 심볼릭 링크(Unix)로 잇는** 구조 전환을 제안한다. 이렇게 해야 앞으로 한쪽만 고치고 다른 쪽을 깜빡해 두 도구가 다른 지침을 보는 드리프트가 구조적으로 불가능해진다.
+  - 내용이 이미 다르면(하나가 최신, 하나가 구버전) 자동으로 최신을 정본으로 고르지 않는다 — 어느 쪽을 정본으로 할지, 다른 쪽의 차이점 중 남길 게 있는지 사용자에게 묻는다.
+  - 이미 정션/심볼릭 링크로 정본을 공유하고 있으면 정상 상태이니 통합 후보로 올리지 않는다 — Phase 1의 링크 여부 확인이 여기서 쓰인다.
+  - Claude 전용 포맷(`.skill` 패키지)과 Codex 호환 매니페스트(`agents/openai.yaml`)가 같은 정본 폴더 안에 공존하는 건 정상 구조다 — 이것도 중복으로 오판하지 않는다.
+  - CLAUDE.md/AGENTS.md의 내용이 다른 도구에는 없는 규칙(예: Claude 쪽에만 있는 응답 언어 규칙)을 담고 있으면, 이건 "도구 간 중복"이 아니라 "그 도구에서만 필요한 보존 항목"이다 — 무조건 양쪽에 복사하라고 제안하지 않는다.
+- **상태줄/HUD**: 컨텍스트 0토큰. 성능 판정 대상이 아니라 취향 영역 → "사용자 판단"으로 분류.
+- **소모 습관 (/usage)**: 상주 컨텍스트와 별개로, 사용량 윈도우를 소진하는 습관도 감사한다 — 서브에이전트 남발, 압축 없이 방치된 장기 세션, 대량 스폰 워크플로우. 이건 파일 삭제가 아니라 습관 교정 권고로 보고서에 싣는다.
+- **적용 스코프(전역 vs 프로젝트)**: 삭제 후보를 **어디서** 끌지는 판정과 별개 결정이다. 스킬·에이전트·훅·MCP는 여러 프로젝트가 공유하는 자산이므로 "이 프로젝트에서 안 쓴다"가 "전역에서 꺼도 된다"를 뜻하지 않는다. 실측 사례: 어떤 감사에서 다른 프로젝트 전용 스킬 8개가 "지금 프로젝트에서 안 쓴다"는 이유로 전역 비활성화 후보에 올랐다. 전역에서 껐다면 그 프로젝트가 조용히 망가지고, 사용자는 그 프로젝트를 다시 열 때까지 몰랐을 것이다.
 
-  Every deletion-candidate line in the report must state its **scope** — a deletion proposal without a scope can't be approved.
+  판정 순서:
+  1. 이 항목을 쓰는 프로젝트가 하나뿐인가, 여럿인가 — 스킬·에이전트 이름을 다른 프로젝트의 CLAUDE.md/AGENTS.md·설정·세션 기록에서도 Grep한다.
+  2. 여럿이면 **프로젝트 로컬로 좁힌다.** 프로젝트 한정 수단: Claude는 프로젝트 `.claude/settings.local.json`의 `skillOverrides`(스킬)·`env`(훅 토큰)·`~/.claude.json`의 해당 프로젝트 키 아래 `disabledMcpServers`(MCP). Codex는 `config.toml`의 `[projects.'<절대경로>']` 테이블 아래(해당 프로젝트 전용 설정이 있다면 거기), 또는 프로젝트 로컬 `.codex/hooks.json`(훅).
+  3. 전역에서 끄는 것은 "어느 프로젝트에서도 안 쓴다"가 확인된 경우뿐이다.
 
-- **Not just subtraction — addition too**: the other half of the audit — if something the model can't derive (a team-specific constraint, a non-default tool choice, a service that must stay running) isn't documented, propose filling that gap with a CLAUDE.md line or a new skill. The goal of a setup isn't minimalism for its own sake — it's "the minimum the agent needs to work without further explanation."
+  보고서의 삭제 후보 줄에는 항상 **스코프**를 명시한다 — 스코프 없는 삭제 제안은 승인받을 수 없다.
 
-## Traps (drawn from real incidents)
+- **빼기만이 아니라 더하기**: 감사의 반대편 절반 — 모델이 알아낼 수 없는 것(팀 고유 제약, 기본값과 다른 도구 선택, 반드시 떠 있어야 하는 서비스)이 문서화돼 있지 않으면, 그 결손을 CLAUDE.md 한 줄 또는 스킬 신설로 보강하라고 제안한다. 셋업의 목표는 최소가 아니라 "에이전트가 추가 설명 없이 일할 수 있는 최소"다.
 
-- **Apparent duplication ≠ real duplication**: a Discord user-skill and a Discord plugin looked like duplicates, but the skill actually depended on the plugin's MCP gateway — a complementary relationship. Verification procedure: grep the deletion candidate's name, MCP tool name, and executable path across every other skill body (the full SKILL.md), agent definitions, and hook/status-line commands in settings. If even one reference turns up, treat it as a dependency and judge them together (delete both or keep both). Even zero grep hits doesn't rule out a runtime dependency (a script calling another skill's batch file, etc.) — for items with a batch/shell script, read that script's contents too.
-- **Mistaking a non-plugin for a plugin**: something installed directly into the skills directory won't appear in the `claude plugin` registry. The disable method is different.
-- **A framework's own doctor has a blind spot**: a diagnostic tool a framework provides **about itself** cannot judge whether the framework should exist at all. Don't use its output as grounds for keeping that framework. This does not apply to Claude Code's built-in `/doctor` or an audit record left by another session — those often surface a layer this skill can't see (actual hook contents, project scope, runtime state), so actively look for and read them in Phase 0.
-- **Quantitative claims from a video/blog**: cite secondhand-commentary numbers (cost, reduction percentage, etc.) as a reference, but don't treat them as established fact.
+## 함정 (실제 사고 사례 기반)
 
-## Classification output
+- **겉보기 중복 ≠ 실제 중복**: Discord 유저 스킬과 Discord 플러그인은 중복처럼 보였지만, 스킬이 플러그인의 MCP 게이트웨이에 의존하는 상호보완 관계였다. 확인 절차: 삭제 후보의 이름·MCP 툴명·실행 파일 경로를 나머지 스킬 본문(SKILL.md 전체), 에이전트 정의, settings의 훅·상태줄 명령에서 Grep한다. 참조가 하나라도 나오면 의존 관계로 보고 함께 판정한다(같이 지우거나 같이 남긴다). Grep 0건이어도 런타임 의존(스크립트가 다른 스킬의 배치 파일을 부르는 등)이 있을 수 있으니, 배치/셸 스크립트를 가진 항목은 그 스크립트 내용까지 본다.
+- **플러그인 아닌 것을 플러그인으로 오인**: 스킬 디렉토리에 직접 설치된 것은 `claude plugin` 레지스트리에 없다. 비활성화 방법이 다르다.
+- **프레임워크 자체 닥터의 맹점**: 프레임워크가 **자기 자신에 대해** 제공하는 진단 도구는 프레임워크 존재 자체를 심판하지 못한다. 그 출력을 그 프레임워크의 존치 근거로 쓰지 말 것. 단 이건 Claude Code 내장 `/doctor`나 다른 세션이 남긴 감사 기록에는 해당하지 않는다 — 그쪽은 이 스킬이 못 본 층(훅 실물, 프로젝트 스코프, 런타임 상태)을 자주 짚으므로 Phase 0에서 오히려 찾아 읽어야 한다.
+- **영상/블로그의 정량 주장**: 2차 해설의 수치(비용, 감축률 등)는 근거로 인용하되 확정 사실로 취급하지 않는다.
 
-| Class | Condition | Handling |
+## 분류 출력
+
+| 분류 | 조건 | 처리 |
 |---|---|---|
-| Deletion candidate | (criterion 1 applies) OR (criterion 2: no evidence **and** model can do it alone) OR (criterion 3 applies) — AND passes the dependency-check procedure | Phase 3 report → Phase 4 on approval |
-| Keep | Unique information, confirmed real-use dependency, well-structured | State the reason for keeping in the report |
-| Needs user judgment | Not controllable from a file (app-UI connectors, etc.), a matter of taste | Provide where to turn it off + decision-relevant material (connectors get the alive/needs-auth/dead three-way split from `references/runtime-verify.md`) |
-| Cross-tool integration candidate | Same skill/instruction exists as an independent copy in both Claude and Codex (not a junction) | Propose one canonical copy + a junction/symlink for the other. Ask the user which side is canonical if content differs |
-| User-rejected | Proposed in a prior audit or recent session, but the user explicitly declined | Do not re-propose. Record in the audit record's "rejected items" with date and the rejection wording. Re-raise only with new grounds when circumstances have changed |
+| 삭제 후보 | (기준 1 해당) 또는 (기준 2: 증거 없음 **및** 스스로 가능) 또는 (기준 3 해당) — 그리고 의존성 확인 절차 통과 | Phase 3 보고 → 승인 시 Phase 4 |
+| 보존 | 고유 정보, 실사용 의존성, 잘 짜인 구조 | 보고서에 보존 근거 명시 |
+| 사용자 판단 | 파일로 제어 불가(앱 UI 커넥터), 취향 영역 | 어디서 끄는지 + 판단 재료 제공 (커넥터는 `references/runtime-verify.md`의 살아있음/인증필요/죽음 3분류로) |
+| 도구 간 통합 후보 | Claude와 Codex에 같은 스킬/지침이 독립 사본(정션 아님)으로 존재 | 정본 하나 + 나머지 정션/심볼릭 링크 전환을 제안. 내용이 다르면 정본 선택을 사용자에게 묻는다 |
+| 사용자 거절 | 이전 감사·최근 세션에서 제안했으나 사용자가 명시적으로 거절함 | 재제안 금지. 감사 기록의 "거절 항목"에 날짜·거절 문구와 함께 남긴다. 상황이 바뀌었을 때만 새 근거를 붙여 다시 올린다 |

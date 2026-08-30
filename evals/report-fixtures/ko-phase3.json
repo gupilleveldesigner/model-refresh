@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0",
+  "report_id": "model-refresh-fixture-ko-phase3",
+  "generated_at": "2026-08-30T19:00:00+09:00",
+  "locale": "ko-KR",
+  "title": "Model Refresh Report",
+  "target_model": "Fable 5",
+  "hosts": ["claude", "codex"],
+  "phase3": {
+    "status": "AWAITING_APPROVAL",
+    "summary": "현재 셋업은 적정하지만 완료 검사 갱신과 커넥터 판단이 필요합니다.",
+    "scores": {
+      "context_fitness": {"value": 0.96, "confidence": "high", "evidence": "실측 /context"},
+      "runtime_hygiene": {"value": 0.88, "confidence": "medium", "evidence": "훅·MCP 실물 확인"},
+      "cross_tool_consistency": {"value": 0.92, "confidence": "high", "evidence": "정션·해시 비교"},
+      "skill_usage_fit": {"value": 0.82, "confidence": "medium", "evidence": "후보 사용 구간 확인"},
+      "eval_freshness": {"value": 0.60, "confidence": "high", "evidence": "3건 뮤테이션 미실행"}
+    },
+    "metrics": [
+      {"label": "상주 컨텍스트", "value": "41.4K / 1M", "ratio": 0.04, "tone": "good"},
+      {"label": "차단 발견", "value": "0", "ratio": 0.0, "tone": "good"},
+      {"label": "완료 검사 갱신", "value": "3", "ratio": 0.6, "tone": "bad"},
+      {"label": "사용자 판단", "value": "2", "ratio": 0.35, "tone": "warn"}
+    ],
+    "host_lanes": [
+      {"name": "CLAUDE", "summary": "훅·플러그인·커넥터 런타임", "status": "2 DECISIONS", "tone": "warn"},
+      {"name": "CODEX", "summary": "전역 정션과 설정 구조", "status": "ALIGNED", "tone": "good"},
+      {"name": "SHARED", "summary": "model-refresh 단일 정본", "status": "CANONICAL", "tone": "good"}
+    ],
+    "findings": [
+      {
+        "id": "context-fit",
+        "label": "KEEP",
+        "category": "Context",
+        "severity": "major",
+        "priority": 10,
+        "highlight": true,
+        "title": "현재 셋업은 적정합니다",
+        "summary": "상주 컨텍스트는 전체의 약 4%이며 추가 다이어트의 실익이 확인되지 않았습니다.",
+        "evidence": ["상주 41.4K/1M", "deferred 항목은 상주 총계에서 제외됨"],
+        "scope": "global",
+        "target": "Claude·Codex 상주 컨텍스트",
+        "action": "현상 유지",
+        "recovery": "해당 없음",
+        "approval_required": false,
+        "diff": "",
+        "diff_sha256": ""
+      },
+      {
+        "id": "watchdog-keep",
+        "label": "RUNTIME EVIDENCE",
+        "category": "Hooks",
+        "severity": "major",
+        "priority": 20,
+        "highlight": true,
+        "title": "Watchdog는 보존합니다",
+        "summary": "컨텍스트 주입과 행동 왜곡 없이 Discord 감시에 실제 사용됩니다.",
+        "evidence": ["로그 파일 전용", "백그라운드 프로세스 실물 확인"],
+        "scope": "global",
+        "target": "session-watchdog hook",
+        "action": "보존",
+        "recovery": "해당 없음",
+        "approval_required": false,
+        "diff": "",
+        "diff_sha256": ""
+      },
+      {
+        "id": "evals-due",
+        "label": "DUE",
+        "category": "Evaluation",
+        "severity": "major",
+        "priority": 30,
+        "highlight": true,
+        "title": "완료 검사 3건이 밀렸습니다",
+        "summary": "새 모델에서도 실패 가능한지 뮤테이션 테스트가 필요합니다.",
+        "evidence": ["PPTX 독립 검증", "자소서 3축", "텍스트 오버플로"],
+        "scope": "projects",
+        "target": "세 완료 검사",
+        "action": "다음 감사에서 뮤테이션 테스트",
+        "recovery": "검사 원본 보존",
+        "approval_required": true,
+        "diff": "--- a/evals/status.md\n+++ b/evals/status.md\n@@\n-pending: false\n+pending: true\n",
+        "diff_sha256": ""
+      },
+      {
+        "id": "connector-decision",
+        "label": "DECIDE",
+        "category": "Connectors",
+        "severity": "minor",
+        "priority": 80,
+        "highlight": false,
+        "title": "커넥터 2건은 사용자 판단이 필요합니다",
+        "summary": "실사용 근거가 부족하지만 deferred라 제거 효과도 작습니다.",
+        "evidence": ["Gmail UUID 이름 불일치", "Vercel 최근 실사용 미검출"],
+        "scope": "global",
+        "target": "계정 커넥터",
+        "action": "유지·보류·비활성화 중 선택",
+        "recovery": "앱 연결 화면에서 재활성화",
+        "approval_required": true,
+        "diff": "",
+        "diff_sha256": ""
+      }
+    ]
+  },
+  "phase5": null,
+  "share": {
+    "title": "MODEL REFRESH",
+    "subtitle": "PRIVACY-SAFE LOCAL AUDIT",
+    "findings": ["Context is lean", "Runtime guardrail is useful", "Three evaluations are due"]
+  }
+}

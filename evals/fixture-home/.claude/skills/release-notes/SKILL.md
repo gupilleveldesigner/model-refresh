@@ -1,8 +1,8 @@
 ---
 name: release-notes
-description: Writes release notes from the commit log. Used across all projects in common.
+description: 커밋 로그에서 릴리스 노트를 작성한다. 모든 프로젝트에서 공통으로 쓴다.
 ---
 
 # release-notes
 
-(fixture body omitted)
+(픽스처 본문 생략)

@@ -1,23 +1,23 @@
-# Completion-check expiry review (Phase 2b)
+# 완료 검사(eval) 만료 점검 (Phase 2b)
 
-## Why this step belongs in a refresh
+## 왜 이 단계가 refresh에 속하는가
 
-A completion check is a fixed, **falsifiable** criterion for judging whether work is actually done (a test suite, an old-vs-new version parity comparison, pixel-diffing screenshots, a character-count limit check, etc.). It's the single reason a long autonomous task doesn't stop prematurely. But completion checks expire — after 2–3 model generations, they start passing everything, and a check that always passes is not a check anymore. **Because the expiry trigger is precisely "a new model shipped," a refresh that only diets context and skips renewing checks is only half a refresh.**
+완료 검사는 "작업이 끝났는지"를 판정하는 고정되고 **실패 가능한** 기준이다 (테스트 스위트, 신구 버전 패리티 비교, 스크린샷 픽셀 비교, 문자수 제한 검사 등). 장기 자율 작업이 조기에 멈추지 않는 유일한 이유가 이것이다. 그런데 완료 검사는 만료된다 — 2~3 모델 세대가 지나면 전부 통과하기 시작하고, 그 시점의 검사는 검사가 아니다. **만료 트리거가 정확히 '새 모델 출시'이므로, 컨텍스트 다이어트만 하고 검사 갱신을 건너뛴 refresh는 절반짜리다.**
 
-## Procedure
+## 절차
 
-1. **Inventory completion checks** — collect anything acting as a "fixed pass/fail bar" across the user's projects, skills, and workflows. Look in: the project's test/QA gates, the pass criteria used by verification skills or verification subagents, "PASS conditions" written into CLAUDE.md/skills, and gate stages in pipelines. This includes not just automated tests but also procedural gates like "release only after an independent QA report says PASS." Don't sweep everything at once — **cap this audit at 3–5**. Priority: (1) checks used as the stop condition for autonomous/long-running work, (2) gates right before release/publish, (3) whichever has gone longest untouched. List the rest by **name only** under "next round" in the audit record. If the inventory is allowed to grow unbounded, this step ends up skipped entirely every time — that's literally what happened in the first audit.
-2. **Ask each check: "can this still fail against the new model?"** Judge in this order, not by impression.
-   - **a. Check failure history** — if it has failed recently, it's alive; keep it. Look for history in: the project's CI/test logs, FAIL records left by a verification subagent, and points in session transcripts where that gate actually forced rework. **Not finding history is different from there being no failures** — if you couldn't find it, go to (b).
-   - **b. Mutation testing (the core test)** — deliberately feed the check a broken input and run it. Example: a document with a required section deleted, an answer that exceeds the character limit, a level JSON broken so it can't be cleared. If it still passes, **that's a confirmed expiry.** This one step turns "expiry candidate" from a guess into proof.
-   - **c.** If the failure condition only targets a mistake type old models used to make (and the current model no longer makes), it's an expiry candidate.
-   - **d.** If the pass/fail basis is subjective judgment like "run it and see if it looks good," it isn't a check at all — a candidate for creating one.
+1. **완료 검사 인벤토리** — 사용자의 프로젝트·스킬·워크플로우에서 "완료/합격을 판정하는 고정 기준" 역할을 하는 것을 수집한다. 찾는 곳: 프로젝트의 테스트·QA 게이트, 검증 스킬·검증 서브에이전트의 판정 기준, CLAUDE.md/스킬에 적힌 "PASS 조건", 파이프라인의 게이트 단계. 자동화된 테스트만이 아니라 "독립 QA 리포트 PASS 후 릴리스" 같은 절차적 게이트도 포함한다. 한 번에 전부 훑지 말고 **이번 감사에서 3~5개**로 제한한다. 우선순위: (1) 자율·장기 작업의 정지 조건으로 쓰이는 검사, (2) 릴리스·공개 직전 게이트, (3) 가장 오래 손 안 댄 것. 나머지는 감사 기록의 "다음 회차 대상"에 **이름만** 적어 넘긴다. 인벤토리가 무한정 커지면 이 단계는 매번 통째로 건너뛰게 된다 — 첫 감사에서 실제로 그랬다.
+2. **각 검사에 묻는다: "새 모델에서도 아직 실패할 수 있는가?"** 인상이 아니라 아래 순서로 판정한다.
+   - **a. 실패 이력 확인** — 최근 실패한 적이 있으면 살아 있는 검사, 보존. 이력을 볼 곳: 프로젝트의 CI·테스트 로그, 검증 서브에이전트가 남긴 FAIL 기록, 세션 트랜스크립트에서 그 게이트가 실제로 재작업을 유발한 지점. **이력을 못 찾은 것과 실패가 없는 것은 다르다** — 못 찾았으면 b로 간다.
+   - **b. 뮤테이션 테스트 (핵심 판정)** — 일부러 틀린 입력을 만들어 검사를 돌린다. 예: 필수 섹션 하나를 지운 문서, 글자수를 초과시킨 답안, 클리어 불가능하게 깨뜨린 레벨 JSON. 여기서도 PASS가 나오면 **확실한 만료**다. 이 한 번이 "만료 후보"를 추측에서 실증으로 바꾼다.
+   - **c.** 실패 조건이 구모델의 실수 유형(이제 모델이 저지르지 않는 실수)만 겨냥하고 있으면 만료 후보.
+   - **d.** 판정 근거가 "돌려보고 좋아 보이는지 본다"류의 주관 판정이면 → 검사가 아님, 신설 후보.
 
-   A check you can't run mutation testing against (a manual QA gate, etc.) gets classified as **"unverified"** and reported as-is — don't call it expired or alive.
-3. **Propose a rewrite direction** — an expiry candidate isn't discarded, it's replaced: rewrite it to target mistakes the new model **actually** makes now. The rewrite must itself be falsifiable — check yourself with "can this come out 'no'?"
-4. **Report as its own section in Phase 3** — "Completion-check expiry review: alive / expiry candidates (with rewrite proposal) / areas with no check (proposal to create one)." Modifying or creating checks goes through the same approval gate as any other setup change.
+   b를 돌릴 수 없는 검사(수동 QA 게이트 등)는 **"미검증"**으로 분류해 그대로 보고한다 — 만료 후보로도 살아 있음으로도 적지 않는다.
+3. **재작성 방향 제안** — 만료 후보는 폐기가 아니라 교체다: 새 모델이 **지금** 실수하는 지점을 겨냥해 다시 쓴다. 재작성안은 실패 가능해야 한다 — "결과가 no로 나올 수 있는가"를 스스로 검사한다.
+4. **Phase 3 보고서에 별도 섹션으로 싣는다** — "완료 검사 만료 점검: 살아 있음 / 만료 후보(재작성안 포함) / 검사 부재 영역(신설 제안)". 검사의 수정·신설도 셋업 변경과 동일하게 승인 게이트를 거친다.
 
-## Caution
+## 주의
 
-- An empty check inventory is itself a significant finding — it means completion is being judged entirely by feel, and the report should say so.
-- A check passing doesn't automatically mean it's expired (the underlying code may have genuinely improved). Judge expiry by whether it **lost the ability to fail** — if it still passes when you deliberately feed it a broken input, that's a confirmed expiry.
+- 검사 인벤토리가 비어 있다는 것 자체가 중요한 발견이다 — 완료 판정이 전부 주관에 의존하고 있다는 뜻이므로 보고서에 그렇게 적는다.
+- 검사가 통과한다고 곧 만료는 아니다 (대상 코드가 실제로 좋아졌을 수 있다). 만료 판정은 "실패할 **능력**을 잃었는가"로 한다 — 일부러 틀린 입력을 넣었을 때도 통과하면 확실한 만료다.
