@@ -263,11 +263,17 @@ def phase5_html(phase5: dict | None, findings: list[dict], t: dict) -> str:
             f'<span class="{tone_class(result.get("verification"))}">{esc(result.get("verification"))}</span>'
             f'<p>{esc(result.get("summary"))}</p></div>'
         )
+    for name, stage in (phase5.get("stages") or {}).items():
+        rows.append(f'<p><b>{esc(name)}</b>: {esc(stage.get("status"))} — {esc(stage.get("reason") or stage.get("evidence"))}</p>')
     remaining = "".join(f"<li>{esc(item)}</li>" for item in phase5.get("remaining") or [])
     return f'<div class="results">{"".join(rows)}<ul>{remaining}</ul></div>'
 
 
 def render(data: dict, report_hash: str) -> str:
+    from validate_report import validate_report
+    contract = validate_report(data)
+    if not contract["valid"]:
+        raise ValueError("; ".join(contract["errors"]))
     for key in ("schema_version", "report_id", "locale", "phase3"):
         if key not in data:
             raise ValueError(f"missing required field: {key}")
@@ -297,6 +303,11 @@ def render(data: dict, report_hash: str) -> str:
     top_cards = finding_cards(findings, t)
     details = findings_html(findings, t)
     metrics = metric_html(phase3.get("metrics") or [])
+    for warning in contract["warnings"]:
+        metrics += f"<p>{esc(warning)}</p>"
+    review = data.get("model_review") or {}
+    if review:
+        metrics += "<details><summary>모델 근거 / Model evidence</summary><pre>" + esc(json.dumps(review, ensure_ascii=False, indent=2)) + "</pre></details>"
     lanes = lanes_html(phase3.get("host_lanes") or [])
     final_results = phase5_html(phase5, findings, t)
     safe_data = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")

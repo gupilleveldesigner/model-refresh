@@ -15,7 +15,7 @@
 
 - Phase 3: `report.json.phase3`를 채우고 `report.html`을 생성한다. 상태는 `AWAITING_APPROVAL`이다.
 - 사용자는 HTML에서 항목별 승인·거절·보류와 메모를 고르고 `decisions.json`을 다운로드한다.
-- `decisions.json`은 선택 내용의 정본이지만 실행 권한 자체는 아니다. Phase 4 직전에 사용자가 현재 채팅에서 “보고서 결정대로 진행”처럼 다시 확인해야 한다.
+- `decisions.json`은 선택 내용의 정본이지만 실행 권한 자체는 아니다. 현재 대화에서 동일 변경안에 대한 사용자 승인을 확인한다. 이미 받은 명시적 승인은 이어받으며, 변경된 범위·내용·추가 권한만 새로 확인한다.
 - Phase 5: 같은 `report.json`에 `phase5`를 추가하고 같은 `report.html`을 다시 생성한다. Phase 3 제안은 변경하지 않는다.
 - 변경이 없거나 전부 거절되면 `phase5.status: NO_CHANGES`로 확정한다.
 
@@ -52,7 +52,8 @@ Phase 5에는 적용 전과 적용 후 점수를 함께 표시한다. 점수 상
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
+  "mode": "setup",
   "report_id": "model-refresh-20260830-190000",
   "generated_at": "2026-08-30T19:00:00+09:00",
   "locale": "ko-KR",
@@ -61,13 +62,14 @@ Phase 5에는 적용 전과 적용 후 점수를 함께 표시한다. 점수 상
   "hosts": ["claude", "codex"],
   "phase3": {
     "status": "AWAITING_APPROVAL",
-    "summary": "현재 셋업은 적정하지만 완료 검사 3건이 만료 후보입니다.",
+    "summary": "셋업 감사 예시. 아래 점수는 실측 결과가 아닙니다.",
+    "required_stages": ["audit"],
     "scores": {
       "context_fitness": {"value": 0.96, "confidence": "high", "evidence": "실측 /context"},
       "runtime_hygiene": {"value": 0.88, "confidence": "medium", "evidence": "훅·MCP 실물 확인"},
       "cross_tool_consistency": {"value": 0.92, "confidence": "high", "evidence": "정션·해시 비교"},
       "skill_usage_fit": {"value": 0.82, "confidence": "medium", "evidence": "후보 사용 구간 확인"},
-      "eval_freshness": {"value": 0.60, "confidence": "high", "evidence": "3건 뮤테이션 미실행"}
+      "eval_freshness": {"value": null, "confidence": "low", "evidence": "검사 유효성 미확인"}
     },
     "metrics": [
       {"label": "Resident context", "value": "41.4K / 1M", "ratio": 0.04, "tone": "good"}
@@ -85,6 +87,16 @@ Phase 5에는 적용 전과 적용 후 점수를 함께 표시한다. 점수 상
   }
 }
 ```
+
+## 근거와 완료 계약 검증
+
+새 보고서는 `schema_version: "1.1"`, `mode: "migration"|"setup"`을 사용한다. 모델 교체 요청은 `migration`이며 `model-evidence.md`의 `model_review`가 필수다. 일반 셋업 정리는 `setup`으로 불필요한 모델 조사를 생략한다. 과거 1.0 기록은 호환성 경고와 함께 읽되, 새 보고서를 1.0으로 작성해 검사를 우회하지 않는다.
+
+`python "<SKILL_ROOT>/scripts/validate_report.py" "<RUN_DIR>/report.json"`
+
+렌더러와 결정 검증기도 이 계약을 확인한다. 검증은 근거 구조와 상태의 정합성만 확인하며 출처의 권위·인용의 정확성·모델 행동·실행 권한을 입증하지 않는다. 해당 의미 검토는 실행자의 책임이다.
+
+Phase 3의 `required_stages`에 합의한 완료 범위(`audit`, 필요 시 `application`, `behavior`, `effect`)를 먼저 적는다. Phase 5에는 네 단계 모두 `pass|fail|unverified|not_applicable`과 근거 또는 이유를 기록한다. 필수 단계 미통과 또는 승인 작업 미적용은 `PARTIAL`; 충족하면 `COMPLETE`; 실제 적용이 없고 필수 단계를 충족하면 `NO_CHANGES`다. 거절·보류는 승인 작업 누락으로 세지 않는다. 동작·효과가 필수 범위 밖이면 미검증을 명시한 채 감사·적용을 완료할 수 있다. 효과 통과에는 실제 비교 측정 근거가 필요하다.
 
 ## finding 계약
 
@@ -146,7 +158,7 @@ Phase 4 전 검증:
 4. 모든 승인 필요 항목이 `approve|reject|defer` 중 하나다.
 5. 사용자가 현재 채팅에서 이 결정 파일대로 진행하라고 명시한다.
 
-외부 발송·삭제·구매·배포·권한 변경 등 별도 승인이 필요한 행위는 결정 JSON이나 일괄 채팅 확인으로 권한이 생기지 않는다. 실행 시점에 해당 행위의 승인을 다시 받는다.
+외부 발송·삭제·구매·배포·권한 변경은 사용자 승인이 해당 행위와 범위를 실제로 포함하는지 확인한다. 결정 JSON만으로 권한을 만들지 않는다. 이미 명시적으로 승인된 동일 행위는 재승인하지 않으며, 새로운 행위나 범위 확대만 확인한다.
 
 ## Phase 5
 
@@ -154,6 +166,12 @@ Phase 4 전 검증:
 {
   "status": "COMPLETE",
   "completed_at": "...",
+  "stages": {
+    "audit": {"status": "pass", "evidence": ["공식 근거와 현재 설정 대조"]},
+    "application": {"status": "pass", "evidence": ["승인 diff 적용 및 재파싱"]},
+    "behavior": {"status": "pass", "evidence": ["대상 호스트의 새 세션 관찰"]},
+    "effect": {"status": "unverified", "reason": "비용·품질 개선 미측정"}
+  },
   "scores": {"context_fitness": {"value": 0.98, "confidence": "high", "evidence": "재측정"}},
   "results": [
     {

@@ -10,6 +10,9 @@ import sys
 from pathlib import Path
 
 
+from validate_report import validate_report
+
+
 VALID_DECISIONS = {"approve", "reject", "defer"}
 
 
@@ -24,7 +27,8 @@ def diff_hash(finding: dict) -> str:
 
 
 def validate(report: dict, decisions: dict) -> dict:
-    errors = []
+    contract = validate_report(report)
+    errors = list(contract["errors"])
     if decisions.get("report_id") != report.get("report_id"):
         errors.append("report_id mismatch")
     expected_report_hash = canonical_hash(report)
@@ -86,7 +90,8 @@ def validate(report: dict, decisions: dict) -> dict:
         "deferred": deferred,
         "unresolved": missing,
         "errors": errors,
-        "authorization": "decision packet only; current chat confirmation is still required",
+        "warnings": contract["warnings"],
+        "authorization": "decision packet only; matching explicit user authorization is required, reuse it if already given",
     }
 
 
