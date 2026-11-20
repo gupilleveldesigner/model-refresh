@@ -11,6 +11,37 @@ from urllib.parse import urlparse
 AXES = {"reasoning", "context_compaction", "autonomy", "instruction_priority",
         "writing", "delegation", "verification", "capabilities"}
 STAGES = {"audit", "application", "behavior", "effect"}
+CURRENT_VERSIONS = {"1.1", "1.2"}
+VERIFICATIONS = {"PASS", "FAIL", "UNVERIFIED"}
+# config = the file or CLI state shows the change; runtime = a fresh session was observed using it.
+VERIFICATION_LEVELS = {"config", "runtime"}
+
+
+def check_result_evidence(result: dict, errors: list[str]) -> None:
+    """1.2: every per-item claim in the final record must say how it is known."""
+    fid = result.get("finding_id")
+    if result.get("decision") != "approve":
+        return
+    if type(result.get("applied")) is not bool:
+        errors.append(f"result {fid}: applied must be true or false")
+        return
+    summary = result.get("summary")
+    has_summary = isinstance(summary, str) and bool(summary.strip())
+    if not result["applied"]:
+        if not has_summary:
+            errors.append(f"result {fid}: an approved but unapplied item needs a summary saying why")
+        return
+    verification = result.get("verification")
+    if verification not in VERIFICATIONS:
+        errors.append(f"result {fid}: verification must be PASS, FAIL or UNVERIFIED")
+    elif verification == "PASS":
+        evidence = result.get("evidence")
+        if not isinstance(evidence, list) or not evidence or any(not isinstance(e, str) or not e.strip() for e in evidence):
+            errors.append(f"result {fid}: PASS requires evidence of what was observed")
+        if result.get("verification_level") not in VERIFICATION_LEVELS:
+            errors.append(f"result {fid}: PASS requires verification_level config or runtime")
+    elif not has_summary:
+        errors.append(f"result {fid}: {verification} requires a summary saying what is missing")
 
 
 def validate_report(report: dict) -> dict:
@@ -21,8 +52,8 @@ def validate_report(report: dict) -> dict:
     if version == "1.0":
         warnings.append("Legacy report: model evidence/stage contract not checked; not proof of refresh completion.")
         return {"valid": True, "errors": [], "warnings": warnings}
-    if version != "1.1":
-        errors.append("schema_version must be 1.1 (1.0 is historical compatibility only)")
+    if version not in CURRENT_VERSIONS:
+        errors.append("schema_version must be 1.2 (1.1 is still read; 1.0 is historical compatibility only)")
     if report.get("mode") not in {"migration", "setup"}:
         errors.append("mode must be migration or setup")
     phase3 = report.get("phase3")
@@ -132,6 +163,8 @@ def validate_report(report: dict) -> dict:
                     errors.append("unapproved result cannot be applied")
                 if r.get("decision") == "approve":
                     approved.append(r)
+                if version == "1.2":
+                    check_result_evidence(r, errors)
             if phase5.get("status") in {"COMPLETE", "NO_CHANGES"}:
                 for f in findings:
                     if isinstance(f, dict) and f.get("approval_required") and f.get("id") not in result_ids:
@@ -142,6 +175,8 @@ def validate_report(report: dict) -> dict:
                         errors.append(f"completion requires stage {name} pass")
                 if any(not r.get("applied") for r in approved):
                     errors.append("approved work remains unapplied")
+                if version == "1.2" and any(r.get("applied") and r.get("verification") != "PASS" for r in approved):
+                    errors.append("COMPLETE requires every applied item to be verified; use PARTIAL otherwise")
                 application = stages.get("application")
                 if approved and (not isinstance(application, dict) or application.get("status") != "pass"):
                     errors.append("applied work requires application pass")

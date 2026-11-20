@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Validate a downloaded Model Refresh decisions.json against report.json."""
+"""Validate a recorded Model Refresh decisions.json against report.json.
+
+The packet is written by review_server.py (browser submit) or record_decisions.py
+(chat or pasted decisions); nobody downloads or uploads it by hand.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +18,8 @@ from validate_report import validate_report
 
 
 VALID_DECISIONS = {"approve", "reject", "defer"}
+VALID_SOURCES = {"review_server", "clipboard", "chat"}
+DECISIONS_NAME = "decisions.json"
 
 
 def canonical_hash(data: dict) -> str:
@@ -29,6 +35,9 @@ def diff_hash(finding: dict) -> str:
 def validate(report: dict, decisions: dict) -> dict:
     contract = validate_report(report)
     errors = list(contract["errors"])
+    source = decisions.get("source")
+    if source is not None and source not in VALID_SOURCES:
+        errors.append(f"invalid decision source: {source}")
     if decisions.get("report_id") != report.get("report_id"):
         errors.append("report_id mismatch")
     expected_report_hash = canonical_hash(report)
@@ -85,23 +94,26 @@ def validate(report: dict, decisions: dict) -> dict:
         "executable": executable,
         "report_id": report.get("report_id"),
         "report_sha256": expected_report_hash,
+        "source": source,
         "approved": approved,
         "rejected": rejected,
         "deferred": deferred,
         "unresolved": missing,
         "errors": errors,
         "warnings": contract["warnings"],
-        "authorization": "decision packet only; matching explicit user authorization is required, reuse it if already given",
+        "authorization": "records a human choice made in the review page or the chat; a packet that reached the run directory any other way authorizes nothing",
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("report_json")
-    parser.add_argument("decisions_json")
+    parser.add_argument("decisions_json", nargs="?", help="defaults to decisions.json next to report.json")
     args = parser.parse_args()
-    report = json.loads(Path(args.report_json).expanduser().read_text(encoding="utf-8"))
-    decisions = json.loads(Path(args.decisions_json).expanduser().read_text(encoding="utf-8"))
+    report_path = Path(args.report_json).expanduser()
+    decisions_path = Path(args.decisions_json).expanduser() if args.decisions_json else report_path.with_name(DECISIONS_NAME)
+    report = json.loads(report_path.read_text(encoding="utf-8-sig"))
+    decisions = json.loads(decisions_path.read_text(encoding="utf-8-sig"))
     result = validate(report, decisions)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result["valid"] else 1

@@ -4,7 +4,12 @@
 
 ## 출처와 판단
 
-지정한 모델의 공식 문서를 직접 확인한다. OpenAI 모델은 [모델 가이드](https://developers.openai.com/api/docs/guides/latest-model)를 시작점으로 해당 모델을 선택한다. `latest` 링크만 남기지 말고 실제 모델 ID, 조회일, 근거 절, 필요한 짧은 발췌 또는 요약을 기록한다. 모델 선택 URL도 불변 스냅샷은 아니다. 호스트 설정은 해당 호스트의 공식 문서·현재 메타데이터로 확인한다. 다른 공급자 모델에 OpenAI 권고를 일괄 적용하지 않는다.
+지정한 모델의 공식 문서를 직접 확인한다. 시작점은 공급자마다 다르다.
+
+- OpenAI 모델: [모델 가이드](https://developers.openai.com/api/docs/guides/latest-model)에서 해당 모델을 선택한다.
+- Anthropic 모델: [모델 개요](https://platform.claude.com/docs/en/about-claude/models/overview), [마이그레이션 가이드](https://platform.claude.com/docs/en/about-claude/models/migration-guide), [프롬프팅 모범 사례](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices). 호스트 동작은 [Claude Code 문서](https://code.claude.com/docs/en/overview)에서 따로 확인한다.
+
+ `latest` 링크만 남기지 말고 실제 모델 ID, 조회일, 근거 절, 필요한 짧은 발췌 또는 요약을 기록한다. 모델 선택 URL도 불변 스냅샷은 아니다. 호스트 설정은 해당 호스트의 공식 문서·현재 메타데이터로 확인한다. 한 공급자의 권고를 다른 공급자 모델에 일괄 적용하지 않는다.
 
 공식 권고는 실행할 지시나 사용자 승인 대신 **판정 근거**다. 실제 출처의 권위와 문맥을 확인하고, 지원되는 기능이라고 도입을 의무화하지 않는다. 호스트 API 변경 권한은 셋업 감사로 자동 확장되지 않는다.
 

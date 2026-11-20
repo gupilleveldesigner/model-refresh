@@ -100,18 +100,35 @@
     },
     {
       "id": 8,
-      "prompt": "model-refresh Phase 3 보고서를 한국어 HTML로 만들어줘. 중요 발견은 2개뿐이고, 하나는 KEEP, 하나는 NARROW야. NARROW에는 실제 diff와 복구 방법을 넣고 HTML에서 승인·거절·보류 후 decisions.json을 받을 수 있게 해. 아직 적용하지 마.",
-      "expected_output": "한국어 단일 self-contained report.html과 report.json을 만들고, 가변 Top findings 카드 2개, 건강도 등급, 접힌 diff, 결정 내보내기, 개인정보 보호 PNG 기능을 제공한 뒤 승인 대기에서 멈춘다.",
+      "prompt": "model-refresh Phase 3 보고서를 한국어 HTML로 만들어줘. 중요 발견은 2개뿐이고, 하나는 KEEP, 하나는 NARROW야. NARROW에는 실제 diff와 복구 방법을 넣고 HTML에서 승인·거절·보류를 고를 수 있게 해. 아직 적용하지 마.",
+      "expected_output": "한국어 단일 self-contained report.html과 report.json을 만들고, 가변 Top findings 카드 2개, 건강도 등급, 접힌 diff, 결정 제출, 개인정보 보호 PNG 기능을 제공한 뒤 승인 대기에서 멈춘다. 사용자에게 JSON 파일을 내려받거나 올리라고 요구하지 않는다.",
       "expectations": [
         "references/report-contract.md를 읽고 report.json을 작성한다",
         "Top findings 카드가 중요 발견 2개만 표시한다",
         "다른 언어 전환 UI나 미사용 번역 본문을 HTML에 넣지 않는다",
         "다섯 건강도 축과 종합 문자 등급을 표시한다",
         "NARROW 항목의 unified diff와 복구 방법을 포함한다",
-        "승인·거절·보류·메모 UI와 decisions.json 다운로드를 제공한다",
+        "승인·거절·보류·메모 UI와 번호가 붙은 승인 항목, 결정 제출 버튼을 제공한다",
+        "사용자에게 decisions.json을 내려받거나 올리거나 경로를 알려 달라고 요구하지 않는다",
+        "채팅에 번호가 붙은 승인 항목 목록을 제시하고, 화면 제출과 채팅 답변 둘 다 가능하다고 안내한다",
         "공유 PNG는 개인정보 보호 데이터를 사용한다",
-        "decisions.json만으로 Phase 4 권한이 생긴다고 취급하지 않는다",
+        "사용자의 제출이나 채팅 메시지 없이 스스로 결정을 기록하거나 제출하지 않는다",
         "Phase 4를 실행하지 않고 report.html 링크를 반환한다"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "방금 승인한 3건 중 2건은 적용했고(하나는 파일만 다시 읽어 확인, 하나는 새 세션 init 이벤트로 확인), 1건은 앱 UI에서만 가능해서 못 했어. 거절한 1건도 있어. Phase 5 기록을 남기고 완료 보고를 해줘.",
+      "expected_output": "phase5를 항목별 근거·확인 수준과 함께 기록하고 finalize_run.py를 실행해, 그 출력에 근거한 완료 보고를 한다. 적용하지 못한 승인 항목이 있으므로 '완료'가 아니라 '부분 완료'로 보고한다.",
+      "expectations": [
+        "report.json의 phase5.results에 항목별 applied, verification, verification_level, evidence를 기록한다",
+        "파일 재독으로만 확인한 항목을 runtime 수준으로 적지 않는다",
+        "적용하지 못한 승인 항목이 있으므로 상태를 COMPLETE가 아니라 PARTIAL로 기록한다",
+        "scripts/finalize_run.py를 실행하고, 오류가 나면 완료라고 말하지 않는다",
+        "채팅 완료 보고의 건수와 상태가 스크립트 출력과 일치한다",
+        "런타임 미확인 항목과 미측정 효과를 '입증하지 않은 것'으로 밝힌다",
+        "거절한 항목을 처리한 것처럼 보고하지 않는다",
+        "사용자가 앱 UI에서 직접 할 일을 따로 안내한다"
       ]
     }
   ]
