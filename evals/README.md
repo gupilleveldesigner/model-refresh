@@ -97,7 +97,15 @@ python scripts/render_report.py evals/report-fixtures/en-phase5.json --output <T
 - 중요 발견 수만큼 Top findings 카드가 생기는가
 - Phase 5가 없으면 최종 탭이 비활성화되는가
 - 다섯 점수 축과 문자 등급이 계산되는가
-- diff·승인 UI·결정 JSON·개인정보 보호 PNG 코드가 포함되는가
+- diff·번호가 붙은 승인 UI·결정 제출(파일로 열면 결정 복사)·개인정보 보호 PNG 코드가 포함되는가
+- 결정 JSON을 내려받게 하는 코드가 없는가
 - Phase 5가 있으면 적용 전→후 상태가 같은 HTML에 공존하는가
 
-브라우저 정책이 로컬 `file://` 자동 클릭을 막는 환경에서는 클릭 우회를 하지 않는다. 렌더·정적 DOM 계약·결정 JSON 검증기로 확인하고, 실제 다운로드 동작은 사용자가 보고서를 여는 환경에서 수행한다.
+결정 수신과 완료 보고 검증은 모델 호출 없이 단위 테스트로 확인한다. 리뷰 서버의 제출 수신·토큰·출처 거절, 채팅 결정 기록, Phase 5 근거 계약, 완료 보고의 결정·디스크 대조가 대상이다.
+
+```text
+cd scripts
+python -m unittest test_report_contract test_decision_flow
+```
+
+화면 동작까지 보려면 픽스처를 임시 폴더에 `report.json`으로 복사해 `python scripts/review_server.py <TEMP>/report.json`을 실행하고, 항목을 고른 뒤 **결정 제출**을 눌러 `<TEMP>/decisions.json`이 생기는지 확인한다.
